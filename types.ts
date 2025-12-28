@@ -1,22 +1,34 @@
 
+export type UserMode = 'LEARNER' | 'TEACHER';
 export type EduvaneMode = 'INSTITUTIONAL' | 'STANDALONE';
-
-export type ValidationStatus = 
-  | 'DRAFT_GENERATED' 
-  | 'PENDING_REVIEW' 
-  | 'VALIDATED' 
-  | 'RELEASED' 
-  | 'DISMISSED';
-
-export type ConceptualCategory = 'CONCEPTUAL' | 'PROCEDURAL' | 'CARELESS';
-
+export type ValidationStatus = 'VALIDATED' | 'PENDING_REVIEW' | 'DRAFT_GENERATED' | 'RELEASED';
 export type IntelligenceAudience = 'EDUCATOR' | 'FAMILY' | 'LEARNER';
 
-export interface TranslatedIntelligence {
-  audience: IntelligenceAudience;
-  headline: string;
-  narrative: string;
-  actionableStep: string;
+export interface Question {
+  id: string;
+  text: string;
+  type: string;
+}
+
+export interface Submission {
+  id: string;
+  timestamp: string;
+  subject: string;
+  topic?: string;
+  score: number;
+  feedback: string;
+  improvementSteps: string[];
+  imageUrl?: string;
+  confidenceScore: number;
+}
+
+export interface PracticeSet {
+  id: string;
+  subject: string;
+  topic: string;
+  difficulty: string;
+  questions: Question[];
+  timestamp: string;
 }
 
 export interface IntelligenceInsight {
@@ -24,25 +36,25 @@ export interface IntelligenceInsight {
   studentId: string;
   artifactId: string;
   timestamp: string;
-  
-  // Intelligence Metrics
   confidenceScore: number;
-  category: ConceptualCategory;
+  category: 'CONCEPTUAL' | 'PROCEDURAL' | 'CARELESS';
   handwritingClarity: number;
-  
-  // The Core "Observation" (Single source of truth)
   rawObservation: string;
-  
-  // Lifecycle
+  /** 
+   * Narrative summary of the observation. 
+   * Synchronized with 'rawObservation' in IntelligenceCore. 
+   */
+  observationalStatement: string; 
   status: ValidationStatus;
-  mode: EduvaneMode;
-  
-  // Authority Metadata
-  teacherNotes?: string;
-  adjustedScore?: number;
+  mode: string;
+  impactLevel: 'HIGH' | 'AMBER' | 'LOW';
+}
 
-  // Impact Layer (Used in components/validation/ValidationGate.tsx)
-  impactLevel?: 'HIGH' | 'AMBER' | 'LOW';
+export interface TranslatedIntelligence {
+  audience: IntelligenceAudience;
+  headline: string;
+  narrative: string;
+  actionableStep: string;
 }
 
 export interface PresentationContent {

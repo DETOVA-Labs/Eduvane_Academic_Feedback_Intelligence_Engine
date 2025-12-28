@@ -14,6 +14,7 @@ export const IntelligenceCore = {
     const confidence = calculateConfidence(data);
     
     // Fix: Aligned properties with IntelligenceInsight interface and corrected 'EDUCATOR_REVIEW' to 'PENDING_REVIEW'
+    // Added observationalStatement to fix rendering in ValidationGate component.
     return {
       id: `INS-${Math.random().toString(36).substr(2, 9)}`,
       studentId: data.studentId || 'ANON',
@@ -23,6 +24,7 @@ export const IntelligenceCore = {
       category: determineCategory(data),
       handwritingClarity: data.clarity || 0.85,
       rawObservation: data.rawObservation,
+      observationalStatement: data.rawObservation,
       status: confidence >= 0.85 ? 'VALIDATED' : 'PENDING_REVIEW',
       mode: data.mode || 'INSTITUTIONAL',
       impactLevel: confidence < 0.7 ? 'HIGH' : (confidence < 0.85 ? 'AMBER' : 'LOW')

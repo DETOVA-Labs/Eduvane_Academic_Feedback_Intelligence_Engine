@@ -1,80 +1,65 @@
 
-import React, { useState } from 'react';
-import { EduvaneMode, IntelligenceInsight } from './types.ts';
-import { EducatorDashboard } from './components/delivery/EducatorDashboard.tsx';
-import { FamilyPortal } from './components/delivery/FamilyPortal.tsx';
-import { AssessmentCreator } from './components/delivery/AssessmentCreator.tsx';
+import React, { useState, useEffect } from 'react';
+import { LandingPage } from './components/standalone/LandingPage.tsx';
+import { Dashboard } from './components/standalone/Dashboard.tsx';
+import { UploadFlow } from './components/standalone/UploadFlow.tsx';
+import { PracticeFlow } from './components/standalone/PracticeFlow.tsx';
+import { HistoryView } from './components/standalone/HistoryView.tsx';
 import { VaneIcon } from './constants.tsx';
-
-const MOCK_INSIGHTS: IntelligenceInsight[] = [
-  {
-    id: 'INS-001',
-    studentId: 'ST-99',
-    artifactId: 'SCAN-A',
-    timestamp: new Date().toISOString(),
-    confidenceScore: 0.92,
-    category: 'PROCEDURAL',
-    handwritingClarity: 0.85,
-    rawObservation: 'Consistent mastery of long division; minor variance in remainder notation',
-    status: 'PENDING_REVIEW',
-    mode: 'INSTITUTIONAL'
-  }
-];
+import { Submission, PracticeSet } from './types.ts';
 
 const App: React.FC = () => {
-  const [mode, setMode] = useState<EduvaneMode>('INSTITUTIONAL');
-  const [view, setView] = useState<'CREATOR' | 'DASHBOARD' | 'FAMILY'>('DASHBOARD');
-  const [insights, setInsights] = useState<IntelligenceInsight[]>(MOCK_INSIGHTS);
+  const [view, setView] = useState<'LANDING' | 'DASHBOARD' | 'UPLOAD' | 'PRACTICE' | 'HISTORY'>('LANDING');
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [practiceSets, setPracticeSets] = useState<PracticeSet[]>([]);
 
-  const updateInsight = (id: string, updates: Partial<IntelligenceInsight>) => {
-    setInsights(prev => prev.map(i => i.id === id ? { ...i, ...updates } : i));
+  // Load persistence
+  useEffect(() => {
+    const savedSubmissions = localStorage.getItem('eduvane_submissions');
+    const savedSets = localStorage.getItem('eduvane_practice');
+    if (savedSubmissions) setSubmissions(JSON.parse(savedSubmissions));
+    if (savedSets) setPracticeSets(JSON.parse(savedSets));
+  }, []);
+
+  const saveSubmission = (sub: Submission) => {
+    const updated = [sub, ...submissions];
+    setSubmissions(updated);
+    localStorage.setItem('eduvane_submissions', JSON.stringify(updated));
   };
+
+  const savePracticeSet = (set: PracticeSet) => {
+    const updated = [set, ...practiceSets];
+    setPracticeSets(updated);
+    localStorage.setItem('eduvane_practice', JSON.stringify(updated));
+  };
+
+  if (view === 'LANDING') return <LandingPage onStart={() => setView('DASHBOARD')} />;
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F7F9FC]">
-      <header className="bg-[#1E3A5F] text-white p-4 sticky top-0 z-50 shadow-md">
+      <header className="bg-[#1E3A5F] text-white p-4 shadow-lg sticky top-0 z-50">
         <div className="container mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('DASHBOARD')}>
             <VaneIcon color="#1FA2A6" size={32} />
-            <div>
-              <h1 className="text-xl font-bold leading-none">EDUVANE</h1>
-              <p className="text-[10px] text-slate-400 font-mono mt-1 uppercase tracking-tighter">Learning Intelligence Engine</p>
-            </div>
+            <h1 className="text-xl font-bold tracking-tight">EDUVANE</h1>
           </div>
-          
-          <div className="flex bg-black/20 rounded-lg p-1">
-            <button 
-              onClick={() => setMode('INSTITUTIONAL')}
-              className={`px-3 py-1 text-[10px] font-bold rounded transition-all ${mode === 'INSTITUTIONAL' ? 'bg-[#1FA2A6] text-white' : 'text-slate-400'}`}
-            >INSTITUTIONAL</button>
-            <button 
-              onClick={() => setMode('STANDALONE')}
-              className={`px-3 py-1 text-[10px] font-bold rounded transition-all ${mode === 'STANDALONE' ? 'bg-[#1FA2A6] text-white' : 'text-slate-400'}`}
-            >STANDALONE</button>
-          </div>
-
           <nav className="flex gap-6">
-            <button onClick={() => setView('CREATOR')} className={`text-xs font-bold uppercase tracking-widest ${view === 'CREATOR' ? 'text-[#1FA2A6]' : 'text-slate-300'}`}>Create</button>
-            <button onClick={() => setView('DASHBOARD')} className={`text-xs font-bold uppercase tracking-widest ${view === 'DASHBOARD' ? 'text-[#1FA2A6]' : 'text-slate-300'}`}>Review</button>
-            <button onClick={() => setView('FAMILY')} className={`text-xs font-bold uppercase tracking-widest ${view === 'FAMILY' ? 'text-[#1FA2A6]' : 'text-slate-300'}`}>Family</button>
+            <button onClick={() => setView('UPLOAD')} className={`text-xs font-bold uppercase tracking-widest ${view === 'UPLOAD' ? 'text-[#1FA2A6]' : 'text-slate-300 hover:text-white'}`}>Upload</button>
+            <button onClick={() => setView('PRACTICE')} className={`text-xs font-bold uppercase tracking-widest ${view === 'PRACTICE' ? 'text-[#1FA2A6]' : 'text-slate-300 hover:text-white'}`}>Practice</button>
+            <button onClick={() => setView('HISTORY')} className={`text-xs font-bold uppercase tracking-widest ${view === 'HISTORY' ? 'text-[#1FA2A6]' : 'text-slate-300 hover:text-white'}`}>History</button>
           </nav>
         </div>
       </header>
 
       <main className="flex-grow container mx-auto py-8 px-4">
-        {view === 'CREATOR' && <AssessmentCreator />}
-        {view === 'DASHBOARD' && (
-          <EducatorDashboard 
-            insights={insights} 
-            mode={mode}
-            onUpdate={updateInsight}
-          />
-        )}
-        {view === 'FAMILY' && <FamilyPortal insights={insights} mode={mode} />}
+        {view === 'DASHBOARD' && <Dashboard onAction={setView} submissions={submissions} />}
+        {view === 'UPLOAD' && <UploadFlow onComplete={saveSubmission} onBack={() => setView('DASHBOARD')} />}
+        {view === 'PRACTICE' && <PracticeFlow onSave={savePracticeSet} onBack={() => setView('DASHBOARD')} />}
+        {view === 'HISTORY' && <HistoryView submissions={submissions} practiceSets={practiceSets} onBack={() => setView('DASHBOARD')} />}
       </main>
 
-      <footer className="bg-white border-t p-4 text-center text-[10px] text-slate-400 font-mono tracking-widest">
-        SYSTEM MODE: {mode} | BUILD 2025.A1 | DETOVA LABS
+      <footer className="p-6 text-center text-[10px] text-slate-400 font-mono tracking-widest uppercase border-t border-slate-200 bg-white">
+        Standalone MVP v1.0 | Eduvane Learning Intelligence
       </footer>
     </div>
   );
