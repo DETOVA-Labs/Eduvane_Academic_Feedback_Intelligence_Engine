@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { AIOrchestrator } from '../../services/AIOrchestrator.ts';
 import { SupabaseService } from '../../services/SupabaseService.ts';
 import { Submission } from '../../types.ts';
-import { Upload, Loader2, CheckCircle, ArrowLeft, Lightbulb, BookOpen, Camera } from 'lucide-react';
+import { Upload, Loader2, CheckCircle, ArrowLeft, Lightbulb, BookOpen, Camera, Info } from 'lucide-react';
+import { VaneIcon } from '../../constants.tsx';
 
 interface UploadFlowProps {
   userId: string;
@@ -24,10 +25,10 @@ export const UploadFlow: React.FC<UploadFlowProps> = ({ userId, initialSubject =
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !subject) return;
+    if (!file) return;
 
     setState('PROCESSING');
-    setProgressMsg('Reading image signal...');
+    setProgressMsg('Ingesting work signal...');
     
     const reader = new FileReader();
     reader.onload = async () => {
@@ -36,8 +37,9 @@ export const UploadFlow: React.FC<UploadFlowProps> = ({ userId, initialSubject =
         setProgressMsg('Uploading to secure vault...');
         const publicUrl = await SupabaseService.storage.upload(userId, base64);
         
-        setProgressMsg('Activating Intelligence Core...');
-        const analysis = await AIOrchestrator.analyzeWork(base64, { subject });
+        setProgressMsg('Activating Intelligence Core (Inferring Context)...');
+        // AIOrchestrator now handles inference if subject is missing
+        const analysis = await AIOrchestrator.analyzeWork(base64, subject ? { subject } : undefined);
         
         const submission: Submission = {
           ...analysis,
@@ -55,7 +57,7 @@ export const UploadFlow: React.FC<UploadFlowProps> = ({ userId, initialSubject =
       } catch (err) {
         console.error(err);
         setState('IDLE');
-        alert("Evaluation pipeline interrupted. Please check your image clarity.");
+        alert("Evaluation pipeline interrupted. Please ensure the image is clear and try again.");
       }
     };
     reader.readAsDataURL(file);
@@ -71,7 +73,7 @@ export const UploadFlow: React.FC<UploadFlowProps> = ({ userId, initialSubject =
           </div>
         </div>
         <div className="text-center">
-          <h3 className="text-2xl font-bold text-[#1E3A5F]">Processing Work</h3>
+          <h3 className="text-2xl font-bold text-[#1E3A5F]">Intelligence In Progress</h3>
           <p className="text-slate-500 animate-pulse mt-2 font-mono text-xs uppercase tracking-widest">{progressMsg}</p>
         </div>
       </div>
@@ -85,9 +87,11 @@ export const UploadFlow: React.FC<UploadFlowProps> = ({ userId, initialSubject =
           <button onClick={onBack} className="flex items-center gap-2 text-slate-400 font-bold text-xs uppercase hover:text-[#1E3A5F]">
             <ArrowLeft size={16} /> Dashboard
           </button>
-          <span className="bg-[#1FA2A6]/10 text-[#1FA2A6] px-4 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest">
-            {result.subject} Analysis captured
-          </span>
+          <div className="text-right">
+            <span className="bg-[#1FA2A6]/10 text-[#1FA2A6] px-4 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest">
+              {result.subject} {result.topic ? `• ${result.topic}` : ''}
+            </span>
+          </div>
         </div>
 
         <div className="bg-white rounded-3xl p-10 shadow-2xl border-b-8 border-[#1FA2A6]">
@@ -104,7 +108,10 @@ export const UploadFlow: React.FC<UploadFlowProps> = ({ userId, initialSubject =
             </div>
             
             <div className="flex-grow space-y-4">
-              <h2 className="text-3xl font-bold text-[#1E3A5F]">Intelligence Feedback</h2>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase text-[#1FA2A6] tracking-widest">Inferred {result.subject} Analysis</span>
+              </div>
+              <h2 className="text-3xl font-bold text-[#1E3A5F]">{result.topic || 'Evaluation Result'}</h2>
               <p className="text-lg text-slate-800 leading-relaxed font-medium insight-narrative">
                 "{result.feedback}"
               </p>
@@ -133,10 +140,10 @@ export const UploadFlow: React.FC<UploadFlowProps> = ({ userId, initialSubject =
               <img src={result.imageUrl} alt="Analyzed Work" className="w-full h-32 object-cover rounded-xl mb-4 opacity-50 grayscale" />
             )}
             <CheckCircle size={40} className="text-[#1FA2A6] mb-4" />
-            <h4 className="text-xl font-bold mb-2">Saved Permanently</h4>
-            <p className="text-slate-400 text-xs mb-6">Your progress for {result.subject} has been updated.</p>
+            <h4 className="text-xl font-bold mb-2">Analysis Complete</h4>
+            <p className="text-slate-400 text-xs mb-6">Subject and topic identified. Insight added to your history.</p>
             <button onClick={() => setState('IDLE')} className="w-full py-3 bg-[#1FA2A6] rounded-xl font-bold uppercase text-xs tracking-widest hover:bg-[#198d91] transition-all">
-              Next Analysis
+              Evaluate More
             </button>
           </div>
         </div>
@@ -148,44 +155,50 @@ export const UploadFlow: React.FC<UploadFlowProps> = ({ userId, initialSubject =
     <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in duration-500">
       <div className="text-center">
         <h2 className="text-3xl font-bold text-[#1E3A5F]">Evaluate Work</h2>
-        <p className="text-slate-500 mt-2">Upload a photo for instant subject-agnostic intelligence.</p>
+        <p className="text-slate-500 mt-2">Act first. Intelligence follows. No context needed.</p>
       </div>
 
       <div className="bg-white p-10 rounded-3xl shadow-sm border border-slate-200 space-y-8">
-        <div className="space-y-2">
-          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Academic Context</label>
-          <div className="relative">
+        {/* ACTION FIRST: Big Upload Button is always primary and unblocked */}
+        <label className="flex flex-col items-center justify-center w-full h-96 border-2 border-dashed border-slate-200 rounded-3xl cursor-pointer hover:bg-slate-50 hover:border-[#1FA2A6] transition-all group relative overflow-hidden">
+          <div className="flex flex-col items-center justify-center pt-5 pb-6 px-10">
+            <div className="bg-[#1FA2A6]/10 p-8 rounded-[2.5rem] mb-6 text-[#1FA2A6] group-hover:scale-110 transition-transform">
+              <Camera size={64} strokeWidth={1.5} />
+            </div>
+            <p className="mb-2 text-xl text-[#1E3A5F] font-black uppercase tracking-tight">
+              Capture or Upload Work
+            </p>
+            <p className="text-sm text-slate-500 text-center font-medium leading-snug">
+              Submit images or PDFs of essays, math, diagrams, or notes.<br/>
+              Eduvane will identify the subject automatically.
+            </p>
+            
+            <div className="mt-8 flex gap-3">
+               <span className="px-4 py-1.5 bg-slate-100 rounded-full text-[10px] text-slate-500 font-bold uppercase tracking-widest">OCR Ready</span>
+               <span className="px-4 py-1.5 bg-slate-100 rounded-full text-[10px] text-slate-500 font-bold uppercase tracking-widest">Math/Science</span>
+               <span className="px-4 py-1.5 bg-slate-100 rounded-full text-[10px] text-slate-500 font-bold uppercase tracking-widest">Humanities</span>
+            </div>
+          </div>
+          <input type="file" className="hidden" accept="image/*,application/pdf" onChange={handleFileUpload} />
+        </label>
+
+        {/* Intelligence Follows: Optional context after the main action */}
+        <div className="pt-6 border-t border-slate-100 flex flex-col gap-4">
+           <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-2">
+             <Info size={12} /> Optional: Targeted Context
+           </div>
+           <div className="relative">
             <BookOpen className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
             <input 
               type="text" 
-              placeholder="e.g. World History, Algebra II, Biology..." 
+              placeholder="e.g. World History, Algebra II..." 
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              className="w-full p-4 pl-12 bg-slate-50 border border-slate-100 rounded-2xl text-sm text-[#1E3A5F] focus:outline-none focus:ring-2 focus:ring-[#1FA2A6]/20 transition-all font-medium"
+              className="w-full p-4 pl-12 bg-slate-50 border border-slate-100 rounded-2xl text-sm text-[#1E3A5F] focus:outline-none focus:ring-2 focus:ring-[#1FA2A6]/20 transition-all font-medium placeholder:text-slate-300"
             />
           </div>
         </div>
-
-        <label className={`flex flex-col items-center justify-center w-full h-72 border-2 border-dashed rounded-3xl transition-all group ${!subject ? 'opacity-50 cursor-not-allowed border-slate-100' : 'cursor-pointer border-slate-200 hover:bg-slate-50 hover:border-[#1FA2A6]'}`}>
-          <div className="flex flex-col items-center justify-center pt-5 pb-6">
-            <div className={`p-5 rounded-3xl mb-4 transition-all ${!subject ? 'bg-slate-50 text-slate-200' : 'bg-slate-100 text-slate-400 group-hover:text-[#1FA2A6] group-hover:bg-[#1FA2A6]/10'}`}>
-              <Camera size={40} />
-            </div>
-            <p className="mb-2 text-sm text-slate-600 font-bold uppercase tracking-widest">
-              {!subject ? 'Context Required First' : 'Click to Capture or Upload'}
-            </p>
-            <p className="text-xs text-slate-400 font-medium italic">Handwritten essays, diagrams, or math problems.</p>
-          </div>
-          <input type="file" className="hidden" accept="image/*,application/pdf" onChange={handleFileUpload} disabled={!subject} />
-        </label>
       </div>
     </div>
   );
 };
-
-const VaneIcon = ({ color, size, className }: any) => (
-  <svg width={size} height={size} viewBox="0 0 100 100" fill="none" className={className}>
-    <path d="M50 5L90 95L50 75L10 95L50 5Z" stroke={color} strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M50 5V75" stroke={color} strokeWidth="6" strokeLinecap="round" />
-  </svg>
-);

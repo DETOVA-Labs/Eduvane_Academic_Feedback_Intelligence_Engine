@@ -1,14 +1,9 @@
 
 export type UserMode = 'LEARNER' | 'TEACHER';
 export type ValidationStatus = 'VALIDATED' | 'PENDING_REVIEW' | 'DRAFT_GENERATED' | 'RELEASED';
-
-// Added missing EduvaneMode definition
 export type EduvaneMode = 'STANDALONE' | 'INSTITUTIONAL';
-
-// Added missing IntelligenceAudience definition
 export type IntelligenceAudience = 'EDUCATOR' | 'FAMILY' | 'LEARNER';
 
-// Added missing TranslatedIntelligence definition
 export interface TranslatedIntelligence {
   audience: IntelligenceAudience;
   headline: string;
@@ -16,7 +11,6 @@ export interface TranslatedIntelligence {
   actionableStep: string;
 }
 
-// Added missing PresentationContent definition
 export interface PresentationContent {
   headline: string;
   narrative: string;
@@ -30,9 +24,11 @@ export interface UserProfile {
 }
 
 export interface IntentResult {
-  intent: 'PRACTICE' | 'ANALYZE' | 'HISTORY' | 'UNKNOWN';
+  intent: 'PRACTICE' | 'ANALYZE' | 'HISTORY' | 'TUTORIAL' | 'UNKNOWN';
   subject?: string;
   topic?: string;
+  count?: number;
+  difficulty?: 'Easy' | 'Medium' | 'Hard';
   message?: string;
 }
 
@@ -76,7 +72,6 @@ export interface IntelligenceInsight {
   rawObservation: string;
   observationalStatement: string; 
   status: ValidationStatus;
-  // Added mode property to fix error in IntelligenceCore.ts
   mode: EduvaneMode;
   impactLevel: 'HIGH' | 'AMBER' | 'LOW';
 }

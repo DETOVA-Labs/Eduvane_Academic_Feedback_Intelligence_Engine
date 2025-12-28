@@ -1,34 +1,75 @@
 
-import React, { useState } from 'react';
-import { Sparkles, ArrowLeft, Loader2, Save, Plus, Trash2, CheckCircle, BookOpen } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Sparkles, ArrowLeft, Loader2, Save, Plus, Trash2, CheckCircle, Command, Send, HelpCircle, Settings2 } from 'lucide-react';
 import { AIOrchestrator } from '../../services/AIOrchestrator.ts';
 import { Question, PracticeSet } from '../../types.ts';
 
 interface PracticeFlowProps {
+  initialSubject?: string;
+  initialTopic?: string;
   onSave: (set: PracticeSet) => void;
   onBack: () => void;
 }
 
-export const PracticeFlow: React.FC<PracticeFlowProps> = ({ onSave, onBack }) => {
+export const PracticeFlow: React.FC<PracticeFlowProps> = ({ initialSubject = '', initialTopic = '', onSave, onBack }) => {
   const [state, setState] = useState<'SETUP' | 'GENERATING' | 'REVIEW' | 'SAVED'>('SETUP');
+  const [command, setCommand] = useState('');
+  const [isRouting, setIsRouting] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [config, setConfig] = useState({
-    subject: '',
-    topic: '',
+    subject: initialSubject,
+    topic: initialTopic,
     difficulty: 'Medium',
     count: 5
   });
   const [questions, setQuestions] = useState<Question[]>([]);
 
-  const handleGenerate = async () => {
-    if (!config.topic || !config.subject) return;
+  useEffect(() => {
+    if (initialSubject || initialTopic) {
+      setConfig(prev => ({ 
+        ...prev, 
+        subject: initialSubject || prev.subject, 
+        topic: initialTopic || prev.topic 
+      }));
+    }
+  }, [initialSubject, initialTopic]);
+
+  const handleCommandSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!command.trim()) return;
+    setIsRouting(true);
+    try {
+      const result = await AIOrchestrator.routeIntent(command);
+      
+      // Update local config with extracted intelligence
+      const updatedConfig = {
+        subject: result.subject || config.subject,
+        topic: result.topic || config.topic,
+        difficulty: (result.difficulty as any) || config.difficulty,
+        count: result.count || config.count
+      };
+      
+      setConfig(updatedConfig);
+      setCommand('');
+
+      // If enough metadata is present, proceed to generation immediately
+      if (updatedConfig.subject && updatedConfig.topic) {
+         handleGenerateWithConfig(updatedConfig);
+      } else {
+        setShowAdvanced(true); // Show fields if AI needs clarification
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Intelligence routing failed. Please use simple parameters.");
+    } finally {
+      setIsRouting(false);
+    }
+  };
+
+  const handleGenerateWithConfig = async (customConfig: typeof config) => {
     setState('GENERATING');
     try {
-      const generated = await AIOrchestrator.generateQuestions({
-        subject: config.subject,
-        topic: config.topic,
-        difficulty: config.difficulty,
-        count: config.count
-      });
+      const generated = await AIOrchestrator.generateQuestions(customConfig);
       setQuestions(generated);
       setState('REVIEW');
     } catch (err) {
@@ -61,11 +102,18 @@ export const PracticeFlow: React.FC<PracticeFlowProps> = ({ onSave, onBack }) =>
 
   if (state === 'GENERATING') {
     return (
-      <div className="flex flex-col items-center justify-center py-20 space-y-6">
-        <Loader2 className="animate-spin text-[#1FA2A6]" size={64} />
-        <div className="text-center">
-          <h3 className="text-2xl font-bold text-[#1E3A5F]">Designing Assessment...</h3>
-          <p className="text-slate-500 animate-pulse mt-2">AI is tailoring items for {config.subject}: {config.topic}.</p>
+      <div className="flex flex-col items-center justify-center py-24 space-y-10 animate-in zoom-in-95 duration-500">
+        <div className="relative">
+          <Loader2 className="animate-spin text-[#1FA2A6]" size={100} strokeWidth={1} />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Sparkles size={40} color="#1FA2A6" className="animate-pulse" />
+          </div>
+        </div>
+        <div className="text-center space-y-3">
+          <h3 className="text-3xl font-black text-[#1E3A5F] tracking-tight">Designing Assessment</h3>
+          <p className="text-slate-500 animate-pulse font-mono text-xs uppercase tracking-[0.3em]">
+            Tailoring {config.count} {config.difficulty} items: {config.subject} • {config.topic}
+          </p>
         </div>
       </div>
     );
@@ -73,17 +121,17 @@ export const PracticeFlow: React.FC<PracticeFlowProps> = ({ onSave, onBack }) =>
 
   if (state === 'SAVED') {
     return (
-      <div className="max-w-md mx-auto py-20 text-center space-y-6 animate-in zoom-in-95 duration-500">
-        <div className="w-20 h-20 bg-[#1FA2A6]/10 rounded-full flex items-center justify-center mx-auto text-[#1FA2A6]">
-          <CheckCircle size={48} />
+      <div className="max-w-md mx-auto py-24 text-center space-y-8 animate-in zoom-in-95 duration-500">
+        <div className="w-24 h-24 bg-[#1FA2A6]/10 rounded-full flex items-center justify-center mx-auto text-[#1FA2A6] shadow-inner">
+          <CheckCircle size={56} strokeWidth={1.5} />
         </div>
         <div>
-          <h2 className="text-3xl font-bold text-[#1E3A5F]">Assessment Saved!</h2>
-          <p className="text-slate-500 mt-2">Your practice set is now available in your history.</p>
+          <h2 className="text-4xl font-black text-[#1E3A5F] tracking-tight">Assessment Indexed</h2>
+          <p className="text-slate-500 mt-3 font-medium">Your intelligence loop is now stronger.</p>
         </div>
-        <div className="pt-6 flex gap-4">
-          <button onClick={onBack} className="flex-1 py-3 bg-[#1E3A5F] text-white rounded-xl font-bold uppercase text-xs tracking-widest">Done</button>
-          <button onClick={() => setState('SETUP')} className="flex-1 py-3 border border-slate-200 text-slate-400 rounded-xl font-bold uppercase text-xs tracking-widest">Create Another</button>
+        <div className="pt-8 flex gap-4">
+          <button onClick={onBack} className="flex-1 py-5 bg-[#1E3A5F] text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-slate-800 transition-all shadow-lg">View Timeline</button>
+          <button onClick={() => setState('SETUP')} className="flex-1 py-5 border-2 border-slate-100 text-slate-400 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-slate-50 transition-all">New Design</button>
         </div>
       </div>
     );
@@ -91,47 +139,47 @@ export const PracticeFlow: React.FC<PracticeFlowProps> = ({ onSave, onBack }) =>
 
   if (state === 'REVIEW') {
     return (
-      <div className="max-w-3xl mx-auto space-y-8 animate-in slide-in-from-bottom-8 duration-500">
+      <div className="max-w-4xl mx-auto space-y-10 animate-in slide-in-from-bottom-8 duration-500 pb-20">
         <div className="flex justify-between items-center">
-          <button onClick={() => setState('SETUP')} className="flex items-center gap-2 text-slate-400 font-bold text-xs uppercase hover:text-[#1E3A5F]">
-            <ArrowLeft size={16} /> Reconfigure
+          <button onClick={() => setState('SETUP')} className="flex items-center gap-2 text-slate-400 font-bold text-[10px] uppercase tracking-widest hover:text-[#1E3A5F] transition-colors">
+            <ArrowLeft size={14} /> Redesign Intent
           </button>
           <div className="text-right">
-            <h2 className="text-xl font-bold text-[#1E3A5F]">{config.topic}</h2>
-            <p className="text-[10px] font-bold text-[#1FA2A6] uppercase tracking-widest">{config.subject} • {config.difficulty} • {questions.length} Items</p>
+            <h2 className="text-2xl font-black text-[#1E3A5F] tracking-tight">{config.topic}</h2>
+            <p className="text-xs font-black text-[#1FA2A6] uppercase tracking-[0.2em]">{config.subject} • {config.difficulty} • {questions.length} Items</p>
           </div>
         </div>
 
-        <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-200 space-y-4">
+        <div className="space-y-6">
           {questions.map((q, idx) => (
-            <div key={q.id} className="group flex items-start gap-4 p-4 bg-slate-50 rounded-2xl border border-transparent hover:border-[#1FA2A6]/30 transition-all">
-              <div className="flex flex-col items-center mt-1">
-                <span className="text-xs font-black text-slate-300">{idx + 1}.</span>
-                <span className="text-[8px] font-bold text-slate-200 uppercase mt-1">{q.type}</span>
+            <div key={q.id} className="group flex items-start gap-8 p-8 bg-white rounded-[2rem] shadow-sm border border-slate-100 hover:border-[#1FA2A6]/30 transition-all">
+              <div className="flex flex-col items-center">
+                <span className="text-sm font-black text-[#1FA2A6]">{String(idx + 1).padStart(2, '0')}</span>
+                <span className="text-[8px] font-black text-slate-300 uppercase mt-2 tracking-widest">{q.type}</span>
               </div>
               <textarea 
                 value={q.text}
                 onChange={(e) => updateQuestion(q.id, e.target.value)}
-                className="flex-grow bg-transparent text-sm font-medium text-[#1E3A5F] focus:outline-none resize-none h-20"
+                className="flex-grow bg-transparent text-lg font-medium text-[#1E3A5F] focus:outline-none resize-none h-24 leading-relaxed placeholder:text-slate-200"
               />
-              <button onClick={() => deleteQuestion(q.id)} className="text-slate-300 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100">
-                <Trash2 size={16} />
+              <button onClick={() => deleteQuestion(q.id)} className="text-slate-200 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 p-2">
+                <Trash2 size={20} />
               </button>
             </div>
           ))}
           
           <button 
-            onClick={() => setQuestions([...questions, { id: Date.now().toString(), text: 'New assessment item...', type: 'GENERAL' }])}
-            className="w-full py-4 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-50 hover:border-[#1FA2A6]/50 transition-all"
+            onClick={() => setQuestions([...questions, { id: Date.now().toString(), text: 'Enter new item description...', type: 'GENERAL' }])}
+            className="w-full py-8 border-2 border-dashed border-slate-100 rounded-[2rem] text-slate-300 text-[10px] font-black uppercase tracking-[0.3em] flex items-center justify-center gap-4 hover:bg-white hover:border-[#1FA2A6]/30 transition-all hover:text-[#1FA2A6]"
           >
-            <Plus size={16} /> ADD ITEM
+            <Plus size={20} /> Add Manual Item
           </button>
         </div>
 
-        <div className="flex justify-end gap-4">
-          <button onClick={onBack} className="px-8 py-3 text-xs font-bold text-slate-400 uppercase tracking-widest">Discard</button>
-          <button onClick={handleSave} className="bg-[#1FA2A6] text-white px-10 py-3 rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg flex items-center gap-3">
-            <Save size={16} /> Save to Profile
+        <div className="sticky bottom-8 flex justify-end gap-6">
+          <button onClick={onBack} className="px-10 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors bg-white/80 backdrop-blur rounded-2xl border border-slate-100 shadow-sm">Discard</button>
+          <button onClick={handleSave} className="bg-[#1FA2A6] text-white px-14 py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl flex items-center gap-4 hover:bg-[#198d91] transition-all hover:-translate-y-1">
+            <Save size={18} /> Finalize Practice Set
           </button>
         </div>
       </div>
@@ -139,73 +187,136 @@ export const PracticeFlow: React.FC<PracticeFlowProps> = ({ onSave, onBack }) =>
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in duration-500">
-      <div className="text-center">
-        <h2 className="text-3xl font-bold text-[#1E3A5F]">Practice Engine</h2>
-        <p className="text-slate-500 mt-2">Generate tailored assessments for any academic discipline.</p>
+    <div className="max-w-3xl mx-auto space-y-12 animate-in fade-in duration-500 py-10">
+      <div className="text-center space-y-3">
+        <div className="inline-flex items-center gap-2 bg-[#1FA2A6]/10 px-4 py-1 rounded-full text-[#1FA2A6] mb-4">
+          <Sparkles size={14} />
+          <span className="text-[10px] font-black uppercase tracking-widest">Assessment Architect</span>
+        </div>
+        <h2 className="text-5xl font-black text-[#1E3A5F] tracking-tighter">Practice Engine</h2>
+        <p className="text-slate-400 font-medium italic text-lg">Command the core. Intelligence follows.</p>
       </div>
 
-      <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 space-y-6">
-        <div className="space-y-4">
-          <label className="block">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Subject</span>
-            <div className="relative mt-2">
-              <BookOpen className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+      {/* PRIMARY UI: THE COMMAND BAR */}
+      <div className="bg-[#1E3A5F] p-12 rounded-[3rem] shadow-[0_32px_64px_-12px_rgba(30,58,95,0.25)] border-b-8 border-[#1FA2A6] text-white space-y-8">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <Command size={18} className="text-[#1FA2A6]" />
+            <span className="text-[11px] font-black uppercase tracking-[0.4em] text-[#1FA2A6]">Intel-Link Command</span>
+          </div>
+          <button 
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className={`p-2 rounded-lg transition-all ${showAdvanced ? 'bg-[#1FA2A6] text-white' : 'bg-white/5 text-slate-500 hover:text-white'}`}
+          >
+            <Settings2 size={18} />
+          </button>
+        </div>
+        
+        <form onSubmit={handleCommandSubmit} className="relative group">
+          <input 
+            type="text"
+            value={command}
+            onChange={(e) => setCommand(e.target.value)}
+            placeholder="e.g., 'Generate 10 physics questions on wave optics and light'..."
+            className="w-full bg-white text-[#1E3A5F] border-[6px] border-transparent rounded-[2rem] py-7 px-10 pr-20 outline-none focus:border-[#1FA2A6] transition-all placeholder:text-slate-300 font-black shadow-2xl text-xl"
+            disabled={isRouting}
+          />
+          <button 
+            type="submit"
+            disabled={isRouting}
+            className="absolute right-4 top-1/2 -translate-y-1/2 p-5 bg-[#1E3A5F] rounded-2xl text-[#1FA2A6] shadow-xl hover:bg-slate-800 transition-all disabled:opacity-50 group-hover:scale-105"
+          >
+            {isRouting ? <Loader2 className="animate-spin" size={28} /> : <Send size={28} />}
+          </button>
+        </form>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+          <div className="flex items-center gap-3 text-white/40">
+            <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-[#1FA2A6] font-black text-xs">01</div>
+            <span className="text-[9px] font-black uppercase tracking-widest leading-tight">Extract<br/>Subject</span>
+          </div>
+          <div className="flex items-center gap-3 text-white/40">
+            <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-[#1FA2A6] font-black text-xs">02</div>
+            <span className="text-[9px] font-black uppercase tracking-widest leading-tight">Identify<br/>Topics</span>
+          </div>
+          <div className="flex items-center gap-3 text-white/40">
+            <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-[#1FA2A6] font-black text-xs">03</div>
+            <span className="text-[9px] font-black uppercase tracking-widest leading-tight">Scale<br/>Volume</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ADVANCED REFINEMENT (Only shown if AI needs clarification or user toggles) */}
+      {showAdvanced && (
+        <div className="bg-white p-12 rounded-[3rem] shadow-sm border border-slate-100 space-y-10 animate-in slide-in-from-top-4 duration-300">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <label className="block">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Academic Subject</span>
               <input 
                 type="text" 
-                placeholder="e.g. Sociology, Chemistry, Literature..." 
+                placeholder="e.g. Sociology, Chemistry..." 
                 value={config.subject}
                 onChange={(e) => setConfig({...config, subject: e.target.value})}
-                className="w-full p-4 pl-12 bg-slate-50 border border-slate-100 rounded-xl text-sm text-[#1E3A5F] focus:outline-none focus:ring-2 focus:ring-[#1FA2A6]/20 transition-all"
+                className="w-full mt-2 p-5 bg-slate-50 border border-slate-100 rounded-2xl text-base text-[#1E3A5F] font-black focus:outline-none focus:ring-4 focus:ring-[#1FA2A6]/10 transition-all"
               />
-            </div>
-          </label>
+            </label>
 
-          <label className="block">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Specific Topic</span>
-            <input 
-              type="text" 
-              placeholder="e.g., French Revolution, Organic Synthesis" 
-              value={config.topic}
-              onChange={(e) => setConfig({...config, topic: e.target.value})}
-              className="w-full mt-2 p-4 bg-slate-50 border border-slate-100 rounded-xl text-sm text-[#1E3A5F] focus:outline-none focus:ring-2 focus:ring-[#1FA2A6]/20 transition-all placeholder:text-slate-300"
-            />
-          </label>
-
-          <div className="grid grid-cols-2 gap-6">
             <label className="block">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Difficulty</span>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Difficulty Tier</span>
               <select 
                 value={config.difficulty}
                 onChange={(e) => setConfig({...config, difficulty: e.target.value})}
-                className="w-full mt-2 p-4 bg-slate-50 border border-slate-100 rounded-xl text-sm text-[#1E3A5F] focus:outline-none appearance-none"
+                className="w-full mt-2 p-5 bg-slate-50 border border-slate-100 rounded-2xl text-base text-[#1E3A5F] font-black focus:outline-none appearance-none cursor-pointer"
               >
                 <option>Easy</option>
                 <option>Medium</option>
                 <option>Hard</option>
               </select>
             </label>
-            <label className="block">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Quantity</span>
-              <input 
-                type="number" 
+          </div>
+
+          <label className="block">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Core Topic(s)</span>
+            <input 
+              type="text" 
+              placeholder="e.g. Newton's Laws, Organic Synthesis..." 
+              value={config.topic}
+              onChange={(e) => setConfig({...config, topic: e.target.value})}
+              className="w-full mt-2 p-5 bg-slate-50 border border-slate-100 rounded-2xl text-base text-[#1E3A5F] font-black focus:outline-none focus:ring-4 focus:ring-[#1FA2A6]/10 transition-all"
+            />
+          </label>
+
+          <label className="block">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Question Volume ({config.count})</span>
+            <div className="mt-4 flex items-center gap-6 bg-slate-50 p-6 rounded-2xl border border-slate-100">
+               <input 
+                type="range" 
                 min="1" 
-                max="10" 
+                max="50" 
                 value={config.count}
                 onChange={(e) => setConfig({...config, count: parseInt(e.target.value)})}
-                className="w-full mt-2 p-4 bg-slate-50 border border-slate-100 rounded-xl text-sm text-[#1E3A5F] focus:outline-none"
+                className="flex-grow h-3 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#1FA2A6]"
               />
-            </label>
-          </div>
-        </div>
+              <span className="text-3xl font-black text-[#1FA2A6] min-w-[2ch]">{config.count}</span>
+            </div>
+          </label>
 
-        <button 
-          onClick={handleGenerate}
-          disabled={!config.topic || !config.subject}
-          className="w-full py-4 bg-[#1FA2A6] text-white rounded-2xl font-bold uppercase text-sm tracking-widest flex items-center justify-center gap-3 shadow-xl hover:shadow-2xl transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:translate-y-0"
-        >
-          <Sparkles size={18} /> Generate Questions
-        </button>
+          <button 
+            onClick={() => handleGenerateWithConfig(config)}
+            disabled={!config.topic || !config.subject}
+            className="w-full py-6 bg-[#1FA2A6] text-white rounded-[1.5rem] font-black uppercase text-xs tracking-widest flex items-center justify-center gap-4 shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1 disabled:opacity-30 disabled:translate-y-0"
+          >
+            <Sparkles size={20} /> Force Manual Generation
+          </button>
+        </div>
+      )}
+
+      <div className="flex flex-col items-center gap-4">
+        <div className="flex items-center gap-2 text-slate-300">
+          <HelpCircle size={14} />
+          <p className="text-[10px] font-bold uppercase tracking-widest">Tips: Try "Generate 15 Chemistry questions on moles and atoms"</p>
+        </div>
+        <button onClick={onBack} className="text-[9px] font-black text-slate-400 uppercase tracking-[0.4em] hover:text-[#1E3A5F] transition-colors py-4">Return to Intelligence Hub</button>
       </div>
     </div>
   );
