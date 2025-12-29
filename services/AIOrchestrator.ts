@@ -5,7 +5,6 @@ import { Question, Submission, IntentResult } from "../types.ts";
 /**
  * ARCHITECTURAL PROVIDER INTERFACE
  * Decouples model identity from architectural role.
- * Any model (LLaMA, Qwen, GPT) can satisfy this interface.
  */
 interface AIProvider {
   generate(params: GenerateContentParameters): Promise<{ text: string | undefined }>;
@@ -23,10 +22,9 @@ class GeminiProvider implements AIProvider {
   }
 
   async generate(params: GenerateContentParameters) {
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) throw new Error("API_KEY is not defined in the environment.");
-    
-    const ai = new GoogleGenAI({ apiKey });
+    // Guidelines: Always initialize with process.env.API_KEY.
+    // Assume the key is valid and present as per platform requirements.
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
     return await ai.models.generateContent({
       model: this.modelName,
       ...params
@@ -37,8 +35,6 @@ class GeminiProvider implements AIProvider {
 /**
  * ROLE: PERCEPTION SERVICE
  * Responsibility: Mechanical OCR / Verbatim text extraction.
- * Constraint: MUST NOT interpret, correct, or normalize text. 
- * Purpose: Acts as a swappable interface for Tesseract or other OCR engines.
  */
 class PerceptionService {
   private provider: AIProvider;
@@ -63,7 +59,6 @@ class PerceptionService {
 /**
  * ROLE: INTERPRETATION SERVICE
  * Responsibility: Structured Context & Intent Classification.
- * Constraint: MUST output machine-readable JSON. MUST be subject-agnostic.
  */
 class InterpretationService {
   private provider: AIProvider;
@@ -124,7 +119,6 @@ class InterpretationService {
 /**
  * ROLE: PRIMARY REASONING SERVICE
  * Responsibility: THE SINGLE VOICE OF EDUVANE.
- * Constraint: ONLY layer permitted to generate user-facing narrative text.
  */
 class PrimaryReasoningService {
   private provider: AIProvider;
@@ -208,51 +202,29 @@ class PrimaryReasoningService {
   }
 }
 
-/**
- * EXPLICIT AI ORCHESTRATOR (DETOVA LABS Standard)
- * Logic flows strictly through role-based services. 
- * Providers are injected to ensure portability.
- */
-
-// Initialize providers with role-specific model assignments
+// Initialize providers
 const flashProvider = new GeminiProvider("gemini-3-flash-preview");
 const proProvider = new GeminiProvider("gemini-3-pro-preview");
 
-// Instantiate services with injected providers
+// Instantiate services
 const perception = new PerceptionService(flashProvider);
 const interpretation = new InterpretationService(flashProvider);
 const reasoning = new PrimaryReasoningService(proProvider);
 
 export const AIOrchestrator = {
-  // Public access to interpretation for routing
   interpretation,
 
+  // No-op validation as per guidelines (assume key is present)
   async validateConfiguration(): Promise<boolean> {
-    const key = process.env.API_KEY;
-    if (!key || key.length < 10) {
-      console.error("ORCHESTRATOR_INIT_FAILURE: API_KEY is invalid or missing.");
-      return false;
-    }
     return true;
   },
 
-  /**
-   * EVALUATION PIPELINE: Perception -> Interpretation -> Reasoning
-   */
   async evaluateWorkFlow(imageBuffer: string): Promise<Omit<Submission, "id" | "timestamp" | "imageUrl">> {
-    // Stage 1: Mechanical Perception
     const rawText = await perception.extractVerbatim(imageBuffer);
-    
-    // Stage 2: Intent Interpretation
     const context = await interpretation.parseIntent(rawText);
-    
-    // Stage 3: Voice Reasoning (Single point of truth for narrative)
     return await reasoning.generateNarrativeEvaluation(rawText, context);
   },
 
-  /**
-   * PRACTICE PIPELINE: Interpretation -> Reasoning
-   */
   async generatePracticeFlow(prompt: string): Promise<Question[]> {
     const context = await interpretation.parseIntent(prompt);
     return await reasoning.generatePracticeItems(context);

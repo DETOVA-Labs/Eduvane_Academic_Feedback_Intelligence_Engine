@@ -9,7 +9,7 @@ import { VaneIcon } from './constants.tsx';
 import { Submission, PracticeSet, UserProfile } from './types.ts';
 import { SupabaseService, supabase } from './services/SupabaseService.ts';
 import { AIOrchestrator } from './services/AIOrchestrator.ts';
-import { LogOut, Loader2, Info, LayoutDashboard, Camera, Sparkles, History, AlertTriangle } from 'lucide-react';
+import { LogOut, Loader2, Info, LayoutDashboard, Camera, Sparkles, History } from 'lucide-react';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
@@ -20,14 +20,9 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
   const [routeParams, setRouteParams] = useState<{ subject?: string; topic?: string }>({});
-  const [orchestratorReady, setOrchestratorReady] = useState<boolean | null>(null);
 
   useEffect(() => {
     const init = async () => {
-      // Validate AI Orchestrator configuration on mount
-      const ready = await AIOrchestrator.validateConfiguration();
-      setOrchestratorReady(ready);
-
       if (SupabaseService.isConfigured()) {
         const { data: { session: currentSession } } = await supabase!.auth.getSession();
         setSession(currentSession);
@@ -119,18 +114,6 @@ const App: React.FC = () => {
     else if (intent === 'HISTORY') setView('HISTORY');
     else setView('DASHBOARD');
   };
-
-  if (orchestratorReady === false) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#1E3A5F] p-8 text-white text-center">
-        <div className="max-w-md space-y-6">
-          <AlertTriangle size={64} className="mx-auto text-amber-500" />
-          <h1 className="text-3xl font-black uppercase tracking-tighter">System Offline</h1>
-          <p className="opacity-70 font-medium">The required API_KEY environment variable is missing or malformed. Contact the Lead AI Architect.</p>
-        </div>
-      </div>
-    );
-  }
 
   if (!session && !isGuest) {
     return (
