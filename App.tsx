@@ -126,8 +126,7 @@ const App: React.FC = () => {
         <div className="max-w-md space-y-6">
           <AlertTriangle size={64} className="mx-auto text-amber-500" />
           <h1 className="text-3xl font-black">Intelligence Engine Offline</h1>
-          {/* Fix: Inform user about missing API_KEY environment variable */}
-          <p className="opacity-70">The API_KEY environment variable is missing or invalid. Please check your environment configuration.</p>
+          <p className="opacity-70">The system intelligence API key is missing. Please ensure your environment is correctly configured for the Gemini API.</p>
         </div>
       </div>
     );

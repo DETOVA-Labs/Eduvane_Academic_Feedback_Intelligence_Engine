@@ -5,14 +5,16 @@ import { Question, Submission, IntentResult } from "../types.ts";
 /**
  * ARCHITECTURAL PROVIDER INTERFACE
  * Decouples model identity from architectural role.
+ * Providers can be swapped (e.g., LLaMA 3, Qwen) without changing service logic.
  */
 interface AIProvider {
-  generate(params: GenerateContentParameters): Promise<any>;
+  generate(params: GenerateContentParameters): Promise<{ text: string | undefined }>;
 }
 
 /**
  * GEMINI PROVIDER ADAPTER
- * Uses process.env.API_KEY exclusively and initializes GoogleGenAI instance right before making calls.
+ * Temporarily implements the AIProvider interface.
+ * Accesses credentials via the platform-provided API_KEY environment variable.
  */
 class GeminiProvider implements AIProvider {
   private modelName: string;
@@ -22,9 +24,9 @@ class GeminiProvider implements AIProvider {
   }
 
   async generate(params: any) {
-    // Correctly obtain API key exclusively from process.env.API_KEY
     const apiKey = process.env.API_KEY;
-    // Create new instance before each call to ensure up-to-date configuration
+    if (!apiKey) throw new Error("API_KEY is not defined.");
+    
     const ai = new GoogleGenAI({ apiKey });
     return await ai.models.generateContent({
       model: this.modelName,
@@ -34,13 +36,15 @@ class GeminiProvider implements AIProvider {
 }
 
 /**
- * ROLE 1: PERCEPTION SERVICE
- * Responsibility: Mechanical text extraction only. No inference.
+ * ROLE: PERCEPTION SERVICE
+ * Responsibility: Mechanical OCR / Verbatim text extraction.
+ * Constraint: No inference, no correction, no grading. Purely mechanical.
  */
 class PerceptionService {
   private provider: AIProvider;
-  constructor() {
-    this.provider = new GeminiProvider("gemini-3-flash-preview");
+
+  constructor(provider?: AIProvider) {
+    this.provider = provider || new GeminiProvider("gemini-3-flash-preview");
   }
 
   async extractVerbatim(imageBuffer: string): Promise<string> {
@@ -48,35 +52,38 @@ class PerceptionService {
       contents: {
         parts: [
           { inlineData: { data: imageBuffer, mimeType: "image/jpeg" } },
-          { text: "PERCEPTION TASK: VERBATIM EXTRACTION. Extract all text exactly. No correction. No interpretation. No grading. Return raw text markdown." }
+          { text: "OCR TASK: VERBATIM EXTRACTION. Return every character and word exactly as it appears. Do not format. Do not fix errors. Do not interpret meaning. Return raw text only." }
         ]
       }
     });
-    // Access .text property directly as it returns string | undefined
     return response.text || "";
   }
 }
 
 /**
- * ROLE 2: INTERPRETATION SERVICE
- * Responsibility: Subject detection, Intent parsing, OCR Cleanup.
+ * ROLE: INTERPRETATION SERVICE
+ * Responsibility: Structured Context & Intent Routing.
+ * Constraint: Outputs strict machine-readable JSON context. Subject-agnostic.
  */
 class InterpretationService {
   private provider: AIProvider;
-  constructor() {
-    this.provider = new GeminiProvider("gemini-3-flash-preview");
+
+  constructor(provider?: AIProvider) {
+    this.provider = provider || new GeminiProvider("gemini-3-flash-preview");
   }
 
   async parseIntent(input: string): Promise<IntentResult> {
     const prompt = `
-      INTERPRETATION TASK: Analyze input for structured context.
+      TASK: ANALYZE SIGNAL FOR CONTEXTUAL ROUTING.
       INPUT: "${input}"
       
-      OUTPUT JSON SCHEMA:
+      INSTRUCTIONS:
+      Identify intent, subject, topic, and parameters. 
+      Output MUST be valid JSON conforming to the following schema:
       {
         "intent": "ANALYZE" | "PRACTICE" | "HISTORY" | "CHAT",
-        "subject": "Detected Academic Subject",
-        "topic": "Specific Concept",
+        "subject": string,
+        "topic": string,
         "difficulty": "Easy" | "Medium" | "Hard",
         "count": number
       }
@@ -100,36 +107,49 @@ class InterpretationService {
       }
     });
 
-    // Access .text property directly
-    return JSON.parse(response.text || "{}");
+    try {
+      const data = JSON.parse(response.text || "{}");
+      return {
+        intent: data.intent as any || "CHAT",
+        subject: data.subject || "General",
+        topic: data.topic || "Undetermined",
+        difficulty: data.difficulty as any || "Medium",
+        count: data.count || 5
+      };
+    } catch (e) {
+      return { intent: "CHAT", subject: "General" };
+    }
   }
 }
 
 /**
- * ROLE 3: PRIMARY REASONING SERVICE
- * Responsibility: Single Voice output. Scoring, Feedback, Question Generation.
+ * ROLE: PRIMARY REASONING SERVICE
+ * Responsibility: THE SINGLE VOICE.
+ * Constraint: The ONLY layer permitted to generate user-facing narrative text.
  */
 class PrimaryReasoningService {
   private provider: AIProvider;
-  constructor() {
-    this.provider = new GeminiProvider("gemini-3-pro-preview");
+
+  constructor(provider?: AIProvider) {
+    this.provider = provider || new GeminiProvider("gemini-3-pro-preview");
   }
 
-  async evaluate(rawText: string, context: IntentResult): Promise<Omit<Submission, "id" | "timestamp" | "imageUrl">> {
+  async generateEvaluation(rawText: string, context: IntentResult): Promise<Omit<Submission, "id" | "timestamp" | "imageUrl">> {
     const prompt = `
-      ROLE: EDUVANE PRIMARY REASONING VOICE.
-      SUBJECT: ${context.subject}. TOPIC: ${context.topic}.
-      DATA: ${rawText}
+      ROLE: EDUVANE REASONING CORE.
+      VOICE: Encouraging, non-authoritative, conversational.
+      CONTEXT: Subject: ${context.subject}, Topic: ${context.topic}.
+      SIGNAL DATA: ${rawText}
       
-      TASK: 
-      1. Produce a Mastery Score (0-100).
-      2. Provide encouraging, conversational pedagogical feedback.
-      3. List 3 specific actionable improvement steps.
+      TASK:
+      1. Provide a Mastery Score (0-100).
+      2. Provide narrative feedback. 
+      3. Provide 3 actionable growth steps.
       
-      CONSTRAINTS:
-      - Score MUST appear first.
-      - Tone: Encouraging and non-authoritative.
-      - Single Voice: Do not mention internal layers.
+      RULES:
+      - Feedback must be the "Voice of Eduvane".
+      - Encouraging tone.
+      - Focus on conceptual gaps identified in the signal.
     `;
 
     const response = await this.provider.generate({
@@ -150,27 +170,28 @@ class PrimaryReasoningService {
       }
     });
 
-    // Access .text property directly
-    const data = JSON.parse(response.text || "{}");
+    const result = JSON.parse(response.text || "{}");
     return {
       subject: context.subject,
-      topic: context.topic || "Academic Work",
-      score: data.score,
-      feedback: data.feedback,
-      improvementSteps: data.improvementSteps,
-      confidenceScore: data.confidenceScore || 0.9
+      topic: context.topic,
+      score: result.score,
+      feedback: result.feedback,
+      improvementSteps: result.improvementSteps,
+      confidenceScore: result.confidenceScore || 0.95
     };
   }
 
-  async generateQuestions(context: IntentResult): Promise<Question[]> {
+  async generateContent(context: IntentResult): Promise<Question[]> {
     const prompt = `
-      ROLE: EDUVANE PRIMARY REASONING VOICE.
-      TASK: Generate ${context.count || 5} ${context.difficulty || 'Medium'} questions for ${context.subject}: ${context.topic}.
+      ROLE: EDUVANE REASONING CORE.
+      TASK: Create ${context.count} ${context.difficulty} practice items for ${context.subject}.
+      TOPIC: ${context.topic}.
       
       FORMAT:
-      - Plain text. Ordered.
-      - No editable UI markers.
-      - High academic rigor.
+      - Plain text.
+      - Ordered (1., 2., 3...).
+      - No interactive UI markers.
+      - Rigorous academic standards.
     `;
 
     const response = await this.provider.generate({
@@ -193,45 +214,53 @@ class PrimaryReasoningService {
       }
     });
 
-    // Access .text property directly
     return JSON.parse(response.text || "[]");
   }
 }
 
 /**
- * EXPLICIT AI ORCHESTRATOR
- * Coordinates role-based services in sequential order.
+ * CENTRAL AI ORCHESTRATOR
+ * Deterministic Conductor of Role-Based Services.
  */
 export const AIOrchestrator = {
   perception: new PerceptionService(),
   interpretation: new InterpretationService(),
   reasoning: new PrimaryReasoningService(),
 
-  async validateConfiguration() {
-    // Validate exclusively against process.env.API_KEY as per core requirement
+  async validateConfiguration(): Promise<boolean> {
     if (!process.env.API_KEY) {
-      console.error("AI Orchestrator Initialization Failure: Missing API_KEY");
+      console.error("CRITICAL: API_KEY is not defined in the environment.");
       return false;
     }
     return true;
   },
 
   /**
-   * FLOW A: UPLOAD EVALUATION
-   * Perception -> Interpretation -> Primary Reasoning
+   * FLOW: EVALUATION PIPELINE
+   * Sequential Orchestration: Perception (OCR) -> Interpretation (Context) -> Primary Reasoning (Voice)
    */
   async evaluateWorkFlow(imageBuffer: string): Promise<Omit<Submission, "id" | "timestamp" | "imageUrl">> {
+    // 1. Mechanical Extraction
     const rawText = await this.perception.extractVerbatim(imageBuffer);
+    
+    // 2. Structural Interpretation
     const context = await this.interpretation.parseIntent(rawText);
-    return await this.reasoning.evaluate(rawText, context);
+    
+    // 3. Primary Reasoning (Voice Generation)
+    // Programmer Guarantee: Narrative strings originate here.
+    return await this.reasoning.generateEvaluation(rawText, context);
   },
 
   /**
-   * FLOW B: QUESTION GENERATION
-   * Prompt -> Interpretation -> Primary Reasoning
+   * FLOW: GENERATION PIPELINE
+   * Sequential Orchestration: Interpretation (Intent) -> Primary Reasoning (Content)
    */
   async generatePracticeFlow(prompt: string): Promise<Question[]> {
+    // 1. Intent Detection
     const context = await this.interpretation.parseIntent(prompt);
-    return await this.reasoning.generateQuestions(context);
+    
+    // 2. Content Reasoning
+    // Programmer Guarantee: Question text originates here.
+    return await this.reasoning.generateContent(context);
   }
 };
