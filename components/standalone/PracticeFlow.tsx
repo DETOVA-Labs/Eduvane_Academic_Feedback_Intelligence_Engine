@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Sparkles, ArrowLeft, Loader2, Save, Plus, Trash2, CheckCircle, Command, Send, HelpCircle, Settings2 } from 'lucide-react';
-import { AIOrchestrator } from '../../services/AIOrchestrator.ts';
+import { BackendService } from '../../services/BackendService.ts';
 import { Question, PracticeSet } from '../../types.ts';
 
 interface PracticeFlowProps {
@@ -39,9 +39,9 @@ export const PracticeFlow: React.FC<PracticeFlowProps> = ({ initialSubject = '',
     if (!command.trim()) return;
     setIsRouting(true);
     try {
-      const result = await AIOrchestrator.routeIntent(command);
+      // Trigger "Backend Endpoint"
+      const result = await BackendService.routeIntent(command);
       
-      // Update local config with extracted intelligence
       const updatedConfig = {
         subject: result.subject || config.subject,
         topic: result.topic || config.topic,
@@ -52,15 +52,14 @@ export const PracticeFlow: React.FC<PracticeFlowProps> = ({ initialSubject = '',
       setConfig(updatedConfig);
       setCommand('');
 
-      // If enough metadata is present, proceed to generation immediately
       if (updatedConfig.subject && updatedConfig.topic) {
          handleGenerateWithConfig(updatedConfig);
       } else {
-        setShowAdvanced(true); // Show fields if AI needs clarification
+        setShowAdvanced(true);
       }
     } catch (e) {
       console.error(e);
-      alert("Intelligence routing failed. Please use simple parameters.");
+      alert("Intelligence bridge failed. Please try a simpler command.");
     } finally {
       setIsRouting(false);
     }
@@ -69,13 +68,13 @@ export const PracticeFlow: React.FC<PracticeFlowProps> = ({ initialSubject = '',
   const handleGenerateWithConfig = async (customConfig: typeof config) => {
     setState('GENERATING');
     try {
-      const generated = await AIOrchestrator.generateQuestions(customConfig);
+      const generated = await BackendService.generateQuestions(customConfig);
       setQuestions(generated);
       setState('REVIEW');
     } catch (err) {
       console.error(err);
       setState('SETUP');
-      alert("Failed to generate questions. Please try again.");
+      alert("Failed to generate items. Please refine your topic.");
     }
   };
 
@@ -110,9 +109,9 @@ export const PracticeFlow: React.FC<PracticeFlowProps> = ({ initialSubject = '',
           </div>
         </div>
         <div className="text-center space-y-3">
-          <h3 className="text-3xl font-black text-[#1E3A5F] tracking-tight">Designing Assessment</h3>
+          <h3 className="text-3xl font-black text-[#1E3A5F] tracking-tight text-balance">Synthesizing Pedagogical Content</h3>
           <p className="text-slate-500 animate-pulse font-mono text-xs uppercase tracking-[0.3em]">
-            Tailoring {config.count} {config.difficulty} items: {config.subject} • {config.topic}
+            Rigor Profile: {config.difficulty} • {config.subject}
           </p>
         </div>
       </div>
@@ -126,12 +125,12 @@ export const PracticeFlow: React.FC<PracticeFlowProps> = ({ initialSubject = '',
           <CheckCircle size={56} strokeWidth={1.5} />
         </div>
         <div>
-          <h2 className="text-4xl font-black text-[#1E3A5F] tracking-tight">Assessment Indexed</h2>
-          <p className="text-slate-500 mt-3 font-medium">Your intelligence loop is now stronger.</p>
+          <h2 className="text-4xl font-black text-[#1E3A5F] tracking-tight">Intelligence Logged</h2>
+          <p className="text-slate-500 mt-3 font-medium">Assessment criteria have been successfully indexed.</p>
         </div>
         <div className="pt-8 flex gap-4">
-          <button onClick={onBack} className="flex-1 py-5 bg-[#1E3A5F] text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-slate-800 transition-all shadow-lg">View Timeline</button>
-          <button onClick={() => setState('SETUP')} className="flex-1 py-5 border-2 border-slate-100 text-slate-400 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-slate-50 transition-all">New Design</button>
+          <button onClick={onBack} className="flex-1 py-5 bg-[#1E3A5F] text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-slate-800 transition-all shadow-lg">View History</button>
+          <button onClick={() => setState('SETUP')} className="flex-1 py-5 border-2 border-slate-100 text-slate-400 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-slate-50 transition-all">New Command</button>
         </div>
       </div>
     );
@@ -142,7 +141,7 @@ export const PracticeFlow: React.FC<PracticeFlowProps> = ({ initialSubject = '',
       <div className="max-w-4xl mx-auto space-y-10 animate-in slide-in-from-bottom-8 duration-500 pb-20">
         <div className="flex justify-between items-center">
           <button onClick={() => setState('SETUP')} className="flex items-center gap-2 text-slate-400 font-bold text-[10px] uppercase tracking-widest hover:text-[#1E3A5F] transition-colors">
-            <ArrowLeft size={14} /> Redesign Intent
+            <ArrowLeft size={14} /> Redefine Context
           </button>
           <div className="text-right">
             <h2 className="text-2xl font-black text-[#1E3A5F] tracking-tight">{config.topic}</h2>
@@ -169,17 +168,17 @@ export const PracticeFlow: React.FC<PracticeFlowProps> = ({ initialSubject = '',
           ))}
           
           <button 
-            onClick={() => setQuestions([...questions, { id: Date.now().toString(), text: 'Enter new item description...', type: 'GENERAL' }])}
+            onClick={() => setQuestions([...questions, { id: Date.now().toString(), text: 'New assessment item...', type: 'GENERAL' }])}
             className="w-full py-8 border-2 border-dashed border-slate-100 rounded-[2rem] text-slate-300 text-[10px] font-black uppercase tracking-[0.3em] flex items-center justify-center gap-4 hover:bg-white hover:border-[#1FA2A6]/30 transition-all hover:text-[#1FA2A6]"
           >
-            <Plus size={20} /> Add Manual Item
+            <Plus size={20} /> Add Item Manually
           </button>
         </div>
 
         <div className="sticky bottom-8 flex justify-end gap-6">
           <button onClick={onBack} className="px-10 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors bg-white/80 backdrop-blur rounded-2xl border border-slate-100 shadow-sm">Discard</button>
           <button onClick={handleSave} className="bg-[#1FA2A6] text-white px-14 py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl flex items-center gap-4 hover:bg-[#198d91] transition-all hover:-translate-y-1">
-            <Save size={18} /> Finalize Practice Set
+            <Save size={18} /> Finalize Intelligence Set
           </button>
         </div>
       </div>
@@ -187,22 +186,21 @@ export const PracticeFlow: React.FC<PracticeFlowProps> = ({ initialSubject = '',
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-12 animate-in fade-in duration-500 py-10">
+    <div className="max-w-3xl mx-auto space-y-12 animate-in fade-in duration-500 py-10 px-4 md:px-0">
       <div className="text-center space-y-3">
         <div className="inline-flex items-center gap-2 bg-[#1FA2A6]/10 px-4 py-1 rounded-full text-[#1FA2A6] mb-4">
           <Sparkles size={14} />
-          <span className="text-[10px] font-black uppercase tracking-widest">Assessment Architect</span>
+          <span className="text-[10px] font-black uppercase tracking-widest">Core Engine</span>
         </div>
-        <h2 className="text-5xl font-black text-[#1E3A5F] tracking-tighter">Practice Engine</h2>
-        <p className="text-slate-400 font-medium italic text-lg">Command the core. Intelligence follows.</p>
+        <h2 className="text-4xl md:text-5xl font-black text-[#1E3A5F] tracking-tighter">Practice Flow</h2>
+        <p className="text-slate-400 font-medium italic text-lg">Natural language setup. Advanced AI generation.</p>
       </div>
 
-      {/* PRIMARY UI: THE COMMAND BAR */}
-      <div className="bg-[#1E3A5F] p-12 rounded-[3rem] shadow-[0_32px_64px_-12px_rgba(30,58,95,0.25)] border-b-8 border-[#1FA2A6] text-white space-y-8">
+      <div className="bg-[#1E3A5F] p-8 md:p-12 rounded-[2rem] md:rounded-[3rem] shadow-[0_32px_64px_-12px_rgba(30,58,95,0.25)] border-b-8 border-[#1FA2A6] text-white space-y-8">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-3">
             <Command size={18} className="text-[#1FA2A6]" />
-            <span className="text-[11px] font-black uppercase tracking-[0.4em] text-[#1FA2A6]">Intel-Link Command</span>
+            <span className="text-[11px] font-black uppercase tracking-[0.4em] text-[#1FA2A6]">Command Input</span>
           </div>
           <button 
             onClick={() => setShowAdvanced(!showAdvanced)}
@@ -217,44 +215,43 @@ export const PracticeFlow: React.FC<PracticeFlowProps> = ({ initialSubject = '',
             type="text"
             value={command}
             onChange={(e) => setCommand(e.target.value)}
-            placeholder="e.g., 'Generate 10 physics questions on wave optics and light'..."
-            className="w-full bg-white text-[#1E3A5F] border-[6px] border-transparent rounded-[2rem] py-7 px-10 pr-20 outline-none focus:border-[#1FA2A6] transition-all placeholder:text-slate-300 font-black shadow-2xl text-xl"
+            placeholder="e.g., 'Generate 10 Math problems on Calculus'"
+            className="w-full bg-white text-[#1E3A5F] border-[6px] border-transparent rounded-[1.5rem] md:rounded-[2rem] py-6 md:py-7 px-6 md:px-10 pr-20 outline-none focus:border-[#1FA2A6] transition-all placeholder:text-slate-300 font-black shadow-2xl text-lg md:text-xl"
             disabled={isRouting}
           />
           <button 
             type="submit"
             disabled={isRouting}
-            className="absolute right-4 top-1/2 -translate-y-1/2 p-5 bg-[#1E3A5F] rounded-2xl text-[#1FA2A6] shadow-xl hover:bg-slate-800 transition-all disabled:opacity-50 group-hover:scale-105"
+            className="absolute right-4 top-1/2 -translate-y-1/2 p-4 md:p-5 bg-[#1E3A5F] rounded-2xl text-[#1FA2A6] shadow-xl hover:bg-slate-800 transition-all disabled:opacity-50"
           >
-            {isRouting ? <Loader2 className="animate-spin" size={28} /> : <Send size={28} />}
+            {isRouting ? <Loader2 className="animate-spin" size={24} /> : <Send size={24} />}
           </button>
         </form>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
           <div className="flex items-center gap-3 text-white/40">
             <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-[#1FA2A6] font-black text-xs">01</div>
-            <span className="text-[9px] font-black uppercase tracking-widest leading-tight">Extract<br/>Subject</span>
+            <span className="text-[9px] font-black uppercase tracking-widest leading-tight">Parse<br/>Intent</span>
           </div>
           <div className="flex items-center gap-3 text-white/40">
             <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-[#1FA2A6] font-black text-xs">02</div>
-            <span className="text-[9px] font-black uppercase tracking-widest leading-tight">Identify<br/>Topics</span>
+            <span className="text-[9px] font-black uppercase tracking-widest leading-tight">Scope<br/>Context</span>
           </div>
           <div className="flex items-center gap-3 text-white/40">
             <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-[#1FA2A6] font-black text-xs">03</div>
-            <span className="text-[9px] font-black uppercase tracking-widest leading-tight">Scale<br/>Volume</span>
+            <span className="text-[9px] font-black uppercase tracking-widest leading-tight">Execute<br/>Build</span>
           </div>
         </div>
       </div>
 
-      {/* ADVANCED REFINEMENT (Only shown if AI needs clarification or user toggles) */}
       {showAdvanced && (
-        <div className="bg-white p-12 rounded-[3rem] shadow-sm border border-slate-100 space-y-10 animate-in slide-in-from-top-4 duration-300">
+        <div className="bg-white p-8 md:p-12 rounded-[2rem] md:rounded-[3rem] shadow-sm border border-slate-100 space-y-10 animate-in slide-in-from-top-4 duration-300">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <label className="block">
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Academic Subject</span>
               <input 
                 type="text" 
-                placeholder="e.g. Sociology, Chemistry..." 
+                placeholder="Physics, Literature..." 
                 value={config.subject}
                 onChange={(e) => setConfig({...config, subject: e.target.value})}
                 className="w-full mt-2 p-5 bg-slate-50 border border-slate-100 rounded-2xl text-base text-[#1E3A5F] font-black focus:outline-none focus:ring-4 focus:ring-[#1FA2A6]/10 transition-all"
@@ -262,7 +259,7 @@ export const PracticeFlow: React.FC<PracticeFlowProps> = ({ initialSubject = '',
             </label>
 
             <label className="block">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Difficulty Tier</span>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Rigor Tier</span>
               <select 
                 value={config.difficulty}
                 onChange={(e) => setConfig({...config, difficulty: e.target.value})}
@@ -276,10 +273,10 @@ export const PracticeFlow: React.FC<PracticeFlowProps> = ({ initialSubject = '',
           </div>
 
           <label className="block">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Core Topic(s)</span>
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Topic Focus</span>
             <input 
               type="text" 
-              placeholder="e.g. Newton's Laws, Organic Synthesis..." 
+              placeholder="e.g. Plate Tectonics..." 
               value={config.topic}
               onChange={(e) => setConfig({...config, topic: e.target.value})}
               className="w-full mt-2 p-5 bg-slate-50 border border-slate-100 rounded-2xl text-base text-[#1E3A5F] font-black focus:outline-none focus:ring-4 focus:ring-[#1FA2A6]/10 transition-all"
@@ -287,12 +284,12 @@ export const PracticeFlow: React.FC<PracticeFlowProps> = ({ initialSubject = '',
           </label>
 
           <label className="block">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Question Volume ({config.count})</span>
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Item Volume ({config.count})</span>
             <div className="mt-4 flex items-center gap-6 bg-slate-50 p-6 rounded-2xl border border-slate-100">
                <input 
                 type="range" 
                 min="1" 
-                max="50" 
+                max="30" 
                 value={config.count}
                 onChange={(e) => setConfig({...config, count: parseInt(e.target.value)})}
                 className="flex-grow h-3 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#1FA2A6]"
@@ -304,19 +301,19 @@ export const PracticeFlow: React.FC<PracticeFlowProps> = ({ initialSubject = '',
           <button 
             onClick={() => handleGenerateWithConfig(config)}
             disabled={!config.topic || !config.subject}
-            className="w-full py-6 bg-[#1FA2A6] text-white rounded-[1.5rem] font-black uppercase text-xs tracking-widest flex items-center justify-center gap-4 shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1 disabled:opacity-30 disabled:translate-y-0"
+            className="w-full py-6 bg-[#1FA2A6] text-white rounded-[1.5rem] font-black uppercase text-xs tracking-widest flex items-center justify-center gap-4 shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1 disabled:opacity-30"
           >
-            <Sparkles size={20} /> Force Manual Generation
+            <Sparkles size={20} /> Manually Trigger Build
           </button>
         </div>
       )}
 
-      <div className="flex flex-col items-center gap-4">
+      <div className="flex flex-col items-center gap-4 pb-12">
         <div className="flex items-center gap-2 text-slate-300">
           <HelpCircle size={14} />
-          <p className="text-[10px] font-bold uppercase tracking-widest">Tips: Try "Generate 15 Chemistry questions on moles and atoms"</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-center">Try: "Help generate a 10 physics questions on wave optics"</p>
         </div>
-        <button onClick={onBack} className="text-[9px] font-black text-slate-400 uppercase tracking-[0.4em] hover:text-[#1E3A5F] transition-colors py-4">Return to Intelligence Hub</button>
+        <button onClick={onBack} className="text-[9px] font-black text-slate-400 uppercase tracking-[0.4em] hover:text-[#1E3A5F] transition-colors py-4">Exit Engine</button>
       </div>
     </div>
   );
