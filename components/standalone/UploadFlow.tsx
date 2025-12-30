@@ -3,8 +3,7 @@ import React, { useState } from 'react';
 import { AIOrchestrator } from '../../services/AIOrchestrator.ts';
 import { SupabaseService } from '../../services/SupabaseService.ts';
 import { Submission } from '../../types.ts';
-import { Loader2, CheckCircle, ArrowLeft, Lightbulb, Camera } from 'lucide-react';
-import { VaneIcon } from '../../constants.tsx';
+import { Loader2, ArrowLeft, Lightbulb, Camera, Upload, CheckCircle } from 'lucide-react';
 
 interface UploadFlowProps {
   userId: string;
@@ -23,7 +22,7 @@ export const UploadFlow: React.FC<UploadFlowProps> = ({ userId, onComplete, onBa
 
     const mimeType = file.type || "image/jpeg";
     setState('PROCESSING');
-    setProgressMsg('Securing work signal...');
+    setProgressMsg('Uploading file...');
     
     const reader = new FileReader();
     reader.onload = async () => {
@@ -31,11 +30,8 @@ export const UploadFlow: React.FC<UploadFlowProps> = ({ userId, onComplete, onBa
       const base64 = fullData.split(',')[1];
       
       try {
-        setProgressMsg('Uploading to vault...');
         const publicUrl = await SupabaseService.storage.upload(userId, base64);
-        
-        setProgressMsg('Running Orchestration Pipeline...');
-        // Pass the explicit mimeType to the orchestrator
+        setProgressMsg('Analyzing your work...');
         const analysis = await AIOrchestrator.evaluateWorkFlow(base64, mimeType);
         
         const submission: Submission = {
@@ -46,14 +42,13 @@ export const UploadFlow: React.FC<UploadFlowProps> = ({ userId, onComplete, onBa
         };
         
         await SupabaseService.submissions.save(userId, submission);
-        
         setResult(submission);
         onComplete(submission);
         setState('RESULT');
       } catch (err) {
-        console.error("Orchestration Error:", err);
+        console.error("Evaluation Error:", err);
         setState('IDLE');
-        alert("Evaluation failed. Please ensure your image is clear and you have an active internet connection.");
+        alert("Evaluation failed. Please try a clearer photo.");
       }
     };
     reader.readAsDataURL(file);
@@ -61,16 +56,11 @@ export const UploadFlow: React.FC<UploadFlowProps> = ({ userId, onComplete, onBa
 
   if (state === 'PROCESSING') {
     return (
-      <div className="flex flex-col items-center justify-center py-20 space-y-8 animate-in zoom-in-95 duration-500">
-        <div className="relative">
-          <Loader2 className="animate-spin text-[#1FA2A6]" size={80} strokeWidth={1} />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <VaneIcon size={32} color="#1FA2A6" className="animate-pulse" />
-          </div>
-        </div>
-        <div className="text-center">
-          <h3 className="text-2xl font-bold text-[#1E3A5F]">Deep Diagnostic In Progress</h3>
-          <p className="text-slate-500 animate-pulse mt-2 font-mono text-xs uppercase tracking-widest">{progressMsg}</p>
+      <div className="flex flex-col items-center justify-center py-20 text-center space-y-6">
+        <Loader2 className="animate-spin text-[#1FA2A6]" size={48} strokeWidth={2} />
+        <div>
+          <h3 className="text-xl font-bold text-[#1E3A5F] dark:text-slate-100">Processing</h3>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">{progressMsg}</p>
         </div>
       </div>
     );
@@ -78,86 +68,89 @@ export const UploadFlow: React.FC<UploadFlowProps> = ({ userId, onComplete, onBa
 
   if (state === 'RESULT' && result) {
     return (
-      <div className="max-w-3xl mx-auto space-y-8 animate-in slide-in-from-bottom-8 duration-500">
-        <div className="flex justify-between items-center">
-          <button onClick={onBack} className="flex items-center gap-2 text-slate-400 font-bold text-xs uppercase hover:text-[#1E3A5F]">
-            <ArrowLeft size={16} /> Exit Analysis
+      <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500 max-w-2xl mx-auto">
+        <header className="flex justify-between items-center">
+          <button onClick={onBack} className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-bold text-xs hover:text-[#1E3A5F] dark:hover:text-slate-100">
+            <ArrowLeft size={16} /> Hub
           </button>
-          <div className="text-right">
-            <span className="bg-[#1FA2A6]/10 text-[#1FA2A6] px-4 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest">
-              {result.subject} {result.topic ? `• ${result.topic}` : ''}
-            </span>
+          <div className="bg-[#1FA2A6]/10 dark:bg-[#1FA2A6]/20 text-[#1FA2A6] px-3 py-1 rounded-full text-xs font-bold">
+            {result.subject}
           </div>
-        </div>
+        </header>
 
-        <div className="bg-white rounded-3xl p-8 md:p-12 shadow-2xl border-b-8 border-[#1FA2A6]">
-          <div className="flex flex-col md:flex-row gap-12 items-center">
-            <div className="text-center">
-              <div className="text-6xl font-black text-[#1FA2A6] leading-none">{result.score}%</div>
-              <div className="text-[10px] font-bold text-[#1E3A5F] uppercase tracking-widest mt-2">Mastery Index</div>
+        <section className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 text-center md:text-left shadow-sm transition-colors">
+          <div className="flex flex-col md:flex-row gap-6 items-center">
+            <div className="bg-slate-50 dark:bg-slate-800 w-24 h-24 rounded-full flex flex-col items-center justify-center border-2 border-slate-100 dark:border-slate-700 shrink-0">
+              <span className="text-3xl font-bold text-[#1FA2A6] leading-none">{result.score}%</span>
+              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-1 uppercase">Score</span>
             </div>
-            
-            <div className="flex-grow space-y-4">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase text-[#1FA2A6] tracking-widest">Primary Voice Diagnostic</span>
-              </div>
-              <p className="text-lg text-slate-800 leading-relaxed font-medium insight-narrative">
+            <div className="space-y-2">
+              <h4 className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Feedback</h4>
+              <p className="text-base text-[#1E3A5F] dark:text-slate-200 leading-relaxed font-medium">
                 {result.feedback}
               </p>
             </div>
           </div>
-        </div>
+        </section>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-12">
-          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
-            <div className="flex items-center gap-2 mb-6 text-[#1FA2A6]">
-              <Lightbulb size={20} />
-              <h4 className="font-bold text-[#1E3A5F] uppercase text-xs tracking-widest">Growth Steps</h4>
+        <section className="space-y-4">
+          <div className="bg-[#1E3A5F] dark:bg-slate-800 p-6 rounded-2xl text-white shadow-md transition-colors">
+            <div className="flex items-center gap-2 mb-4">
+              <Lightbulb size={18} className="text-[#1FA2A6]" />
+              <h4 className="font-bold text-sm">Steps to improve</h4>
             </div>
             <ul className="space-y-4">
               {result.improvementSteps.map((step, i) => (
-                <li key={i} className="flex gap-4 text-sm text-slate-700">
-                  <span className="font-black text-[#1FA2A6] bg-[#1FA2A6]/5 w-6 h-6 flex items-center justify-center rounded-lg flex-shrink-0">{i + 1}</span>
+                <li key={i} className="flex gap-3 text-sm text-white/90">
+                  <span className="font-bold text-[#1FA2A6] shrink-0">{i + 1}.</span>
                   {step}
                 </li>
               ))}
             </ul>
           </div>
           
-          <button onClick={() => setState('IDLE')} className="bg-[#1E3A5F] p-10 rounded-2xl text-white flex flex-col justify-center items-center text-center shadow-xl hover:scale-[1.02] transition-transform">
-            <CheckCircle size={40} className="text-[#1FA2A6] mb-4" />
-            <h4 className="text-xl font-bold mb-2">Diagnostic Complete</h4>
-            <p className="text-slate-400 text-xs">Evaluate new work signal</p>
+          <button 
+            onClick={() => setState('IDLE')} 
+            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 py-4 rounded-xl font-bold text-[#1E3A5F] dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center justify-center gap-2"
+          >
+            <Camera size={18} /> Upload new work
           </button>
-        </div>
+        </section>
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in duration-500 py-6">
-      <div className="text-center">
-        <h2 className="text-4xl font-black text-[#1E3A5F] tracking-tight">Immediate Evaluation</h2>
-        <p className="text-slate-500 mt-2 font-medium">Agnostic diagnostic core. No pre-context required.</p>
-      </div>
+    <div className="space-y-6 max-w-2xl mx-auto">
+      <header className="text-center space-y-1">
+        <h2 className="text-3xl font-bold text-[#1E3A5F] dark:text-slate-100">Upload your work</h2>
+        <p className="text-slate-500 dark:text-slate-400 text-sm">Get your score and clear feedback instantly.</p>
+      </header>
 
-      <div className="bg-white p-6 md:p-10 rounded-3xl shadow-sm border border-slate-200">
-        <label className="flex flex-col items-center justify-center w-full h-96 border-4 border-dashed border-slate-100 rounded-[2.5rem] cursor-pointer hover:bg-slate-50 hover:border-[#1FA2A6]/30 transition-all group">
-          <div className="flex flex-col items-center justify-center p-10">
-            <div className="bg-[#1FA2A6]/5 p-10 rounded-[3rem] mb-6 text-[#1FA2A6] group-hover:scale-105 transition-transform">
-              <Camera size={64} strokeWidth={1.5} />
-            </div>
-            <p className="mb-2 text-2xl text-[#1E3A5F] font-black uppercase tracking-tight text-center">
-              Snap Work Signal
-            </p>
-            <p className="text-sm text-slate-400 text-center font-medium leading-relaxed max-w-xs">
-              Handwritten notes, essays, or problems.<br />
-              Eduvane infers subject automatically.
-            </p>
+      <div className="bg-white dark:bg-slate-900 p-6 md:p-10 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm text-center transition-colors">
+        <h3 className="text-sm font-bold text-[#1E3A5F] dark:text-slate-200 mb-6 transition-colors">Add your answer</h3>
+        
+        <label className="flex flex-col items-center justify-center w-full min-h-[250px] border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:border-[#1FA2A6] transition-all group p-6">
+          <div className="bg-[#1FA2A6]/5 dark:bg-[#1FA2A6]/20 p-5 rounded-full mb-4 text-[#1FA2A6] group-hover:scale-110 transition-transform">
+            <Upload size={32} />
           </div>
-          <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} />
+          <p className="text-lg font-bold text-[#1E3A5F] dark:text-slate-100 mb-1 transition-colors">
+            Upload image or PDF
+          </p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">
+            Take a photo or upload a file from your device.
+          </p>
+          <input type="file" className="hidden" accept="image/*,application/pdf" onChange={handleFileUpload} />
         </label>
+        
+        <p className="mt-6 text-[11px] text-slate-400 dark:text-slate-500 font-medium transition-colors">
+          No subject selection needed. Eduvane will figure it out.
+        </p>
       </div>
+      
+      <button onClick={onBack} className="w-full text-sm font-bold text-slate-400 dark:text-slate-500 hover:text-[#1E3A5F] dark:hover:text-slate-100 transition-colors">
+        Go back
+      </button>
     </div>
   );
 };

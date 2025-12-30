@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Sparkles, TrendingUp, Clock, Send, Loader2, Command } from 'lucide-react';
+import { Send, Loader2, Sparkles, TrendingUp, ChevronRight, Camera, FileText } from 'lucide-react';
 import { Submission, UserProfile } from '../../types.ts';
 import { AIOrchestrator } from '../../services/AIOrchestrator.ts';
 
@@ -20,13 +20,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAction, onCommand, submi
     if (!command.trim()) return;
     setIsRouting(true);
     try {
-      // Fix: Property 'interpretationLayer' does not exist on AIOrchestrator. Using interpretation.parseIntent instead.
       const result = await AIOrchestrator.interpretation.parseIntent(command);
       setCommand('');
       onCommand(result.intent, result.subject, result.topic);
     } catch (e) {
       console.error("Routing Error:", e);
-      alert("Command not understood. Use simple prompts like 'Practice Science'.");
+      alert("Try something like 'Practice math' or 'Analyze my work'.");
     } finally {
       setIsRouting(false);
     }
@@ -37,65 +36,85 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAction, onCommand, submi
     : 0;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
-      <div className="bg-[#1E3A5F] p-8 md:p-12 rounded-[2.5rem] shadow-2xl text-white relative overflow-hidden border-b-8 border-[#1FA2A6]">
-        <div className="relative z-10 space-y-8">
-          <div className="flex items-center gap-2">
-            <Command size={16} className="text-[#1FA2A6]" />
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#1FA2A6]">Eduvane Intelligence Link</span>
+    <div className="space-y-6 max-w-3xl mx-auto">
+      <header className="mb-6">
+        <h2 className="text-2xl font-bold text-[#1E3A5F] dark:text-slate-100 transition-colors">Your Hub</h2>
+        <p className="text-slate-500 dark:text-slate-400 text-sm">Welcome back. What would you like to do today?</p>
+      </header>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <button 
+          onClick={() => onAction('UPLOAD')}
+          className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 text-left hover:border-[#1FA2A6] dark:hover:border-[#1FA2A6] transition-all group"
+        >
+          <div className="bg-[#1FA2A6]/10 dark:bg-[#1FA2A6]/20 p-3 rounded-xl w-fit mb-4 text-[#1FA2A6] group-hover:scale-110 transition-transform">
+            <Camera size={24} />
           </div>
-          
-          <div>
-            <h2 className="text-3xl md:text-4xl font-black tracking-tight">Welcome, {profile?.email.split('@')[0]}</h2>
-            <p className="text-slate-400 text-sm md:text-base max-w-lg mt-2 font-medium italic">Conversational command bar active. Speak to the Core.</p>
+          <h3 className="font-bold text-[#1E3A5F] dark:text-slate-100 text-lg">Upload work</h3>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Get feedback on your homework or exam practice.</p>
+        </button>
+
+        <button 
+          onClick={() => onAction('PRACTICE')}
+          className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 text-left hover:border-[#1FA2A6] dark:hover:border-[#1FA2A6] transition-all group"
+        >
+          <div className="bg-[#1FA2A6]/10 dark:bg-[#1FA2A6]/20 p-3 rounded-xl w-fit mb-4 text-[#1FA2A6] group-hover:scale-110 transition-transform">
+            <Sparkles size={24} />
           </div>
-          
-          <form onSubmit={handleCommandSubmit} className="relative">
-            <input 
-              type="text"
-              value={command}
-              onChange={(e) => setCommand(e.target.value)}
-              placeholder="e.g., 'Evaluate my chemistry work' or 'Need 5 physics questions'..."
-              className="w-full bg-white text-[#1E3A5F] rounded-2xl py-6 px-8 pr-20 outline-none focus:ring-4 focus:ring-[#1FA2A6]/20 transition-all placeholder:text-slate-400 font-bold shadow-2xl text-lg"
-              disabled={isRouting}
-            />
-            <button 
-              type="submit"
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-4 md:p-5 bg-[#1E3A5F] rounded-xl text-[#1FA2A6] shadow-lg disabled:opacity-50"
-              disabled={isRouting}
-            >
-              {isRouting ? <Loader2 className="animate-spin" size={24} /> : <Send size={24} />}
-            </button>
-          </form>
-        </div>
+          <h3 className="font-bold text-[#1E3A5F] dark:text-slate-100 text-lg">Practice questions</h3>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Generate new questions to test your knowledge.</p>
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <section className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-200">
-          <div className="flex items-center gap-2 mb-6">
-            <TrendingUp size={20} className="text-[#1FA2A6]" />
-            <h3 className="font-black text-[#1E3A5F] text-xs uppercase tracking-widest">Growth Mastery</h3>
-          </div>
-          <p className="text-6xl font-black text-[#1E3A5F]">{avgScore}%</p>
-          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-2">Aggregated Score across {submissions.length} signals</p>
-        </section>
+      <section className="bg-[#1E3A5F] dark:bg-slate-800 p-6 rounded-2xl text-white transition-colors">
+        <h3 className="text-sm font-bold opacity-80 mb-4">Quick Search</h3>
+        <form onSubmit={handleCommandSubmit} className="relative">
+          <input 
+            type="text"
+            value={command}
+            onChange={(e) => setCommand(e.target.value)}
+            placeholder="e.g. '10 questions on history'..."
+            className="w-full bg-white/10 dark:bg-slate-900/50 text-white rounded-xl py-4 px-5 pr-12 outline-none focus:ring-2 focus:ring-[#1FA2A6] transition-all placeholder:text-white/40 dark:placeholder:text-slate-500 font-medium border border-transparent dark:border-slate-700"
+            disabled={isRouting}
+          />
+          <button 
+            type="submit"
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-[#1FA2A6] rounded-lg text-white disabled:opacity-50"
+            disabled={isRouting}
+          >
+            {isRouting ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
+          </button>
+        </form>
+      </section>
 
-        <section className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-200">
-          <div className="flex items-center gap-2 mb-6">
-            <Clock size={20} className="text-[#1E3A5F]" />
-            <h3 className="font-black text-[#1E3A5F] text-xs uppercase tracking-widest">Recent Signals</h3>
+      {submissions.length > 0 && (
+        <section className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 transition-colors">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <TrendingUp size={18} className="text-[#1FA2A6]" />
+              <h4 className="font-bold text-[#1E3A5F] dark:text-slate-100 text-sm">Recent Activity</h4>
+            </div>
+            <button onClick={() => onAction('HISTORY')} className="text-xs font-bold text-[#1FA2A6] hover:underline">View all</button>
           </div>
-          <div className="space-y-4">
+          <div className="space-y-3">
             {submissions.slice(0, 3).map(s => (
-              <div key={s.id} className="flex justify-between items-center border-b border-slate-50 pb-2">
-                <span className="font-bold text-[#1E3A5F] text-sm">{s.subject}</span>
-                <span className="font-black text-[#1FA2A6]">{s.score}%</span>
+              <div key={s.id} onClick={() => onAction('HISTORY')} className="flex justify-between items-center p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl cursor-pointer transition-colors">
+                <div className="flex items-center gap-3">
+                  <FileText size={18} className="text-slate-400 dark:text-slate-500" />
+                  <div>
+                    <p className="font-semibold text-[#1E3A5F] dark:text-slate-200 text-sm">{s.subject}</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500">{new Date(s.timestamp).toLocaleDateString()}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-[#1FA2A6] text-sm">{s.score}%</span>
+                  <ChevronRight size={14} className="text-slate-300 dark:text-slate-600" />
+                </div>
               </div>
             ))}
-            {submissions.length === 0 && <p className="text-slate-400 text-xs italic">Waiting for your first upload signal.</p>}
           </div>
         </section>
-      </div>
+      )}
     </div>
   );
 };

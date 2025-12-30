@@ -1,88 +1,77 @@
 
 import React from 'react';
 import { VaneIcon } from '../../constants.tsx';
-import { Upload, Sparkles, ArrowRight, LogIn, Play } from 'lucide-react';
+import { ArrowRight, LogIn, ShieldCheck, Sparkles } from 'lucide-react';
 
 interface LandingPageProps {
-  onStart: (intent: 'DASHBOARD' | 'UPLOAD' | 'PRACTICE') => void;
+  onSignUp: () => void;
+  onSignIn: () => void;
   onGuest: () => void;
 }
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onGuest }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onSignUp, onSignIn, onGuest }) => {
   return (
-    <div className="min-h-screen bg-[#1E3A5F] flex flex-col items-center justify-center p-6 text-white text-center">
-      <div className="mb-12 animate-in fade-in zoom-in duration-1000">
-        <VaneIcon size={100} color="#1FA2A6" />
-      </div>
-      
-      <div className="max-w-4xl space-y-6 mb-20">
-        <h1 className="text-7xl md:text-9xl font-black tracking-tighter leading-none">EDUVANE</h1>
-        <p className="text-2xl md:text-3xl font-light text-[#1FA2A6] italic font-serif opacity-80">
-          Agnostic Learning Intelligence.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-10 w-full max-w-6xl">
-        <button 
-          onClick={() => onStart('UPLOAD')}
-          className="group bg-white text-[#1E3A5F] p-16 rounded-[4rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.3)] flex flex-col items-center gap-10 transition-all hover:scale-[1.02] border-b-[16px] border-slate-200"
-        >
-          <div className="bg-[#1FA2A6]/10 p-10 rounded-[2.5rem] text-[#1FA2A6] group-hover:rotate-6 transition-transform">
-            <Upload size={72} strokeWidth={2.5} />
-          </div>
-          <div>
-            <h3 className="font-black text-4xl uppercase tracking-tighter">Snap Work</h3>
-            <p className="text-slate-500 mt-4 font-medium text-lg leading-relaxed">
-              Immediate feedback & diagnostics.<br/>No subject lock-in required.
-            </p>
-          </div>
-          <div className="flex items-center gap-4 bg-[#1FA2A6] text-white px-12 py-5 rounded-full text-sm font-black uppercase tracking-widest shadow-2xl group-hover:bg-[#198d91] transition-all">
-            START EVALUATION <ArrowRight size={20} />
-          </div>
-        </button>
-
-        <button 
-          onClick={() => onStart('PRACTICE')}
-          className="group bg-[#1FA2A6] text-white p-16 rounded-[4rem] shadow-[0_50px_100px_-20px_rgba(31,162,166,0.3)] flex flex-col items-center gap-10 transition-all hover:scale-[1.02] border-b-[16px] border-[#198d91]"
-        >
-          <div className="bg-white/20 p-10 rounded-[2.5rem] text-white group-hover:-rotate-6 transition-transform">
-            <Sparkles size={72} strokeWidth={2.5} />
-          </div>
-          <div>
-            <h3 className="font-black text-4xl uppercase tracking-tighter text-white">Command Gen</h3>
-            <p className="text-white/80 mt-4 font-medium text-lg leading-relaxed">
-              Synthesize rigorous practice items.<br/>Any subject, any concept.
-            </p>
-          </div>
-          <div className="flex items-center gap-4 bg-white text-[#1FA2A6] px-12 py-5 rounded-full text-sm font-black uppercase tracking-widest shadow-2xl transition-all">
-            OPEN CORE <ArrowRight size={20} />
-          </div>
-        </button>
-      </div>
-
-      <div className="mt-24 flex flex-col items-center gap-12">
-        <div className="flex flex-col md:flex-row items-center gap-10">
-          <button 
-            onClick={() => onStart('DASHBOARD')}
-            className="flex items-center gap-4 bg-white/5 hover:bg-white/10 border border-white/20 px-12 py-6 rounded-[2rem] text-sm font-black uppercase tracking-widest transition-all shadow-inner"
-          >
-            <LogIn size={20} className="text-[#1FA2A6]" /> Sign Up / Sign In
-          </button>
-          
-          <div className="hidden md:block h-12 w-px bg-white/10"></div>
-
-          <button 
-            onClick={onGuest}
-            className="group text-slate-500 hover:text-white transition-colors text-xs font-black uppercase tracking-[0.5em] flex items-center gap-4"
-          >
-            <Play size={20} className="fill-slate-500 group-hover:fill-white" /> Continue as Guest
-          </button>
+    <div className="min-h-screen bg-white dark:bg-slate-950 flex flex-col transition-colors">
+      <main className="flex-grow w-full max-w-4xl mx-auto px-6 pt-16 pb-24 flex flex-col items-center text-center">
+        <div className="mb-8">
+          <VaneIcon size={48} color="#1FA2A6" />
         </div>
+
+        <h1 className="text-4xl md:text-6xl font-bold text-[#1E3A5F] dark:text-slate-100 tracking-tight mb-4">
+          Turning student work into learning intelligence.
+        </h1>
         
-        <p className="text-[10px] text-slate-600 font-mono tracking-[0.8em] uppercase opacity-40">
-          Standalone MVP Intelligence • Spec V1.2
+        <p className="text-slate-500 dark:text-slate-400 text-base md:text-lg max-w-xl mb-12 leading-relaxed">
+          Snap a photo of your work to get clear feedback, or generate targeted practice questions for any subject. No setup required.
         </p>
-      </div>
+
+        <div className="flex flex-col gap-4 w-full max-w-xs mb-10">
+          <button 
+            onClick={onSignUp}
+            className="w-full bg-[#1E3A5F] dark:bg-slate-800 text-white px-6 py-4 rounded-xl font-bold text-base flex items-center justify-center gap-2 hover:bg-[#152a46] dark:hover:bg-slate-700 transition-all shadow-lg"
+          >
+            Get started <ArrowRight size={18} />
+          </button>
+          <div className="flex gap-2">
+            <button 
+              onClick={onSignIn}
+              className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[#1E3A5F] dark:text-slate-200 px-4 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+            >
+              <LogIn size={16} className="text-[#1FA2A6]" /> Sign in
+            </button>
+          </div>
+        </div>
+
+        <button 
+          onClick={onGuest}
+          className="group flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-[#1E3A5F] dark:hover:text-slate-200 transition-colors text-sm font-semibold py-4"
+        >
+          Try without signing in
+        </button>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-20 text-left w-full max-w-3xl">
+          <div className="p-6 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-transparent dark:border-slate-800">
+            <ShieldCheck size={24} className="text-[#1FA2A6] mb-3" />
+            <h3 className="text-lg font-bold text-[#1E3A5F] dark:text-slate-100 mb-2">Learning from your work</h3>
+            <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
+              Upload any assignment or test. Eduvane recognizes the subject automatically to provide scores and clear steps for improvement.
+            </p>
+          </div>
+          <div className="p-6 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-transparent dark:border-slate-800">
+            <Sparkles size={24} className="text-[#1FA2A6] mb-3" />
+            <h3 className="text-lg font-bold text-[#1E3A5F] dark:text-slate-100 mb-2">Targeted practice</h3>
+            <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
+              Create focused questions for any topic to test your understanding and sharpen your skills.
+            </p>
+          </div>
+        </div>
+      </main>
+
+      <footer className="py-8 text-center border-t border-slate-100 dark:border-slate-900">
+        <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">
+          Eduvane • Academic support for students and teachers.
+        </p>
+      </footer>
     </div>
   );
 };

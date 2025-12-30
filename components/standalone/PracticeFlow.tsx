@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Sparkles, ArrowLeft, Loader2, Save, Send, Command } from 'lucide-react';
+import { Sparkles, ArrowLeft, Loader2, Send, Command } from 'lucide-react';
 import { AIOrchestrator } from '../../services/AIOrchestrator.ts';
 import { Question, PracticeSet } from '../../types.ts';
 
@@ -12,7 +12,7 @@ interface PracticeFlowProps {
 
 export const PracticeFlow: React.FC<PracticeFlowProps> = ({ initialSubject = '', onSave, onBack }) => {
   const [state, setState] = useState<'SETUP' | 'GENERATING' | 'REVIEW' | 'SAVED'>('SETUP');
-  const [prompt, setPrompt] = useState(initialSubject ? `Generate 5 items for ${initialSubject}` : '');
+  const [prompt, setPrompt] = useState(initialSubject ? `Generate questions for ${initialSubject}` : '');
   const [questions, setQuestions] = useState<Question[]>([]);
   const [metadata, setMetadata] = useState<{ subject: string; topic: string }>({ subject: '', topic: '' });
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +37,7 @@ export const PracticeFlow: React.FC<PracticeFlowProps> = ({ initialSubject = '',
     } catch (err) {
       console.error("Practice Generation Error:", err);
       setState('SETUP');
-      setError("The Intelligence Core failed to synthesize items. Please refine your prompt.");
+      setError("Unable to generate questions. Try a simpler prompt like '10 math problems'.");
     }
   };
 
@@ -52,15 +52,16 @@ export const PracticeFlow: React.FC<PracticeFlowProps> = ({ initialSubject = '',
     };
     onSave(newSet);
     setState('SAVED');
+    onBack();
   };
 
   if (state === 'GENERATING') {
     return (
-      <div className="flex flex-col items-center justify-center py-24 space-y-10 animate-in zoom-in-95 duration-500">
-        <Loader2 className="animate-spin text-[#1FA2A6]" size={100} strokeWidth={1} />
-        <div className="text-center">
-          <h3 className="text-3xl font-black text-[#1E3A5F]">Orchestrating Pedagogical Rigor</h3>
-          <p className="text-slate-500 animate-pulse font-mono text-xs uppercase tracking-[0.3em] mt-2">Primary Reasoning Engine Active</p>
+      <div className="flex flex-col items-center justify-center py-20 text-center space-y-6">
+        <Loader2 className="animate-spin text-[#1FA2A6]" size={48} strokeWidth={2} />
+        <div>
+          <h3 className="text-xl font-bold text-[#1E3A5F] dark:text-slate-100">Generating questions</h3>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Creating your study material...</p>
         </div>
       </div>
     );
@@ -68,63 +69,70 @@ export const PracticeFlow: React.FC<PracticeFlowProps> = ({ initialSubject = '',
 
   if (state === 'REVIEW') {
     return (
-      <div className="max-w-4xl mx-auto space-y-10 animate-in slide-in-from-bottom-8 duration-500 pb-20">
-        <div className="text-right">
-          <h2 className="text-3xl font-black text-[#1E3A5F] tracking-tight">{metadata.topic}</h2>
-          <p className="text-xs font-black text-[#1FA2A6] uppercase tracking-[0.2em]">{metadata.subject}</p>
-        </div>
+      <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500 max-w-2xl mx-auto pb-10">
+        <header className="flex justify-between items-center px-2">
+          <div>
+            <h2 className="text-xl font-bold text-[#1E3A5F] dark:text-slate-100">{metadata.topic}</h2>
+            <p className="text-xs font-bold text-[#1FA2A6] uppercase">{metadata.subject}</p>
+          </div>
+          <button onClick={() => setState('SETUP')} className="text-xs font-bold text-slate-400 dark:text-slate-500 hover:text-[#1E3A5F] dark:hover:text-slate-200">Discard</button>
+        </header>
 
-        <div className="space-y-6">
+        <div className="space-y-3">
           {questions.map((q, idx) => (
-            <div key={idx} className="p-10 bg-white rounded-[2.5rem] shadow-sm border border-slate-100 font-medium text-xl text-[#1E3A5F] leading-relaxed">
-              <span className="text-[10px] font-black text-slate-300 uppercase block mb-6 tracking-[0.4em]">Item {idx + 1}</span>
-              <p>{q.text}</p>
+            <div key={idx} className="p-5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
+              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 block mb-2 uppercase">Question {idx + 1}</span>
+              <p className="text-[#1E3A5F] dark:text-slate-200 font-medium">{q.text}</p>
             </div>
           ))}
         </div>
 
-        <div className="flex justify-end gap-6 pt-10">
-          <button onClick={() => setState('SETUP')} className="px-10 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-[#1E3A5F]">Discard</button>
-          <button onClick={handleSave} className="bg-[#1FA2A6] text-white px-14 py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl">
-            Index Practice Set
-          </button>
-        </div>
+        <button 
+          onClick={handleSave} 
+          className="w-full bg-[#1FA2A6] text-white py-4 rounded-xl font-bold text-sm shadow-lg active:scale-95 transition-all"
+        >
+          Save this set
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-12 py-10 px-4">
-      <div className="text-center space-y-3">
-        <h2 className="text-5xl font-black text-[#1E3A5F] tracking-tighter">Command Generation</h2>
-        <p className="text-slate-400 font-medium text-xl italic">Agnostic synthesis. Any subject, any level.</p>
+    <div className="max-w-2xl mx-auto space-y-6">
+      <header className="text-center space-y-1">
+        <h2 className="text-3xl font-bold text-[#1E3A5F] dark:text-slate-100 transition-colors">Generate practice questions</h2>
+        <p className="text-slate-500 dark:text-slate-400 text-sm">Create focused questions for any subject or topic.</p>
         {error && (
-          <div className="bg-red-50 text-red-600 p-4 rounded-xl text-xs font-bold uppercase tracking-tight border border-red-100 animate-bounce">
+          <div className="mt-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-3 rounded-lg text-xs font-semibold border border-red-100 dark:border-red-900/50">
             {error}
           </div>
         )}
-      </div>
+      </header>
 
-      <div className="bg-[#1E3A5F] p-12 rounded-[3.5rem] shadow-2xl text-white">
-        <form onSubmit={handleExecute} className="relative">
-          <Command className="absolute left-6 top-1/2 -translate-y-1/2 text-[#1FA2A6]" size={28} />
-          <input 
-            type="text"
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="e.g., '10 Physics problems' or 'Literature test on 1984'"
-            className="w-full bg-white text-[#1E3A5F] rounded-[2rem] py-8 px-16 outline-none focus:ring-8 focus:ring-[#1FA2A6]/20 transition-all font-black shadow-2xl text-xl placeholder:text-slate-300"
-          />
+      <div className="bg-white dark:bg-slate-900 p-6 md:p-10 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
+        <form onSubmit={handleExecute} className="space-y-6">
+          <div className="relative">
+            <Command className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600" size={18} />
+            <input 
+              type="text"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="e.g. '10 questions on quadratic equations'"
+              className="w-full bg-slate-50 dark:bg-slate-950 text-[#1E3A5F] dark:text-slate-200 rounded-xl py-4 px-11 outline-none focus:ring-2 focus:ring-[#1FA2A6] transition-all font-medium border border-slate-100 dark:border-slate-800 placeholder:text-slate-300 dark:placeholder:text-slate-700"
+            />
+          </div>
           <button 
             type="submit"
-            className="absolute right-4 top-1/2 -translate-y-1/2 p-6 bg-[#1E3A5F] rounded-2xl text-[#1FA2A6]"
+            className="w-full bg-[#1E3A5F] dark:bg-slate-800 text-white py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg hover:bg-[#152a46] dark:hover:bg-slate-700 transition-all"
           >
-            <Send size={28} />
+            Generate questions <Send size={16} className="text-[#1FA2A6]" />
           </button>
         </form>
       </div>
       
-      <button onClick={onBack} className="w-full text-[10px] font-black text-slate-400 uppercase tracking-[0.5em] hover:text-[#1E3A5F]">Exit engine</button>
+      <button onClick={onBack} className="w-full text-sm font-bold text-slate-400 dark:text-slate-500 hover:text-[#1E3A5F] dark:hover:text-slate-100 transition-colors">
+        Go back
+      </button>
     </div>
   );
 };
