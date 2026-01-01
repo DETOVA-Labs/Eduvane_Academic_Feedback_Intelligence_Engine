@@ -2,8 +2,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { Submission, PracticeSet, UserProfile } from '../types.ts';
 
-const supabaseUrl = process.env.SUPABASE_URL || 'https://iskljnrtncrmiwoslker.supabase.co';
-const supabaseKey = process.env.SUPABASE_ANON_KEY || 'sb_publishable_bexNdEA5ebBZGNcbOCFxwg_a5D8M1Nj';
+const supabaseUrl = process.env.SUPABASE_URL || '';
+const supabaseKey = process.env.SUPABASE_ANON_KEY || '';
 
 // Only initialize Supabase if configuration is present
 export const supabase = (supabaseUrl && supabaseKey) 
