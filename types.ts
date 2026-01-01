@@ -28,13 +28,11 @@ export interface Submission {
   timestamp: string;
   subject: string;
   topic?: string;
-  score: number | null; // Nullable for keyless mode
+  score: number;
   feedback: string;
   improvementSteps: string[];
   imageUrl?: string;
   confidenceScore: number;
-  reasoningType: 'LOCAL' | 'AI';
-  rawText?: string;
 }
 
 export interface PracticeSet {

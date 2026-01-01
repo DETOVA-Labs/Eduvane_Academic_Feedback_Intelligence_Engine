@@ -1,3 +1,0 @@
-{
-  "installCommand": "npm cache clean --force && npm ci"
-}
