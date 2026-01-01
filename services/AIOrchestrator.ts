@@ -5,21 +5,19 @@ import Tesseract from 'tesseract.js';
 
 /**
  * EDUVANE CORE - PRODUCTION ORCHESTRATOR
- * This engine acts as the "Intelligence Bridge" between local perception and cloud reasoning.
+ * Design Mandate: Keyless primary perception with optional AI reasoning.
  */
 
 const STABLE_MODEL = 'gemini-3-flash-preview';
 
 const getEngine = () => {
   const key = process.env.API_KEY;
-  if (!key) {
-    throw new Error("EDUVANE_CORE: API_KEY is missing. Ensure the host environment provides a valid key.");
-  }
+  if (!key) return null;
   return new GoogleGenAI({ apiKey: key });
 };
 
 export const AIOrchestrator = {
-  // Local Perception Engine (Keyless)
+  // Local Perception Engine (Truly Keyless)
   perception: {
     extractText: async (imageSource: string): Promise<{ text: string; confidence: number }> => {
       try {
@@ -38,6 +36,18 @@ export const AIOrchestrator = {
   interpretation: {
     parseIntent: async (input: string): Promise<IntentResult> => {
       const ai = getEngine();
+      if (!ai) {
+        // Deterministic Fallback for Keyless Mode
+        const low = input.toLowerCase();
+        if (low.includes("practice") || low.includes("question") || low.includes("test")) {
+          return { intent: "PRACTICE", subject: "General", topic: input };
+        }
+        if (low.includes("analyze") || low.includes("upload") || low.includes("check")) {
+          return { intent: "ANALYZE", subject: "General" };
+        }
+        return { intent: "UNKNOWN", subject: "General" };
+      }
+
       try {
         const response = await ai.models.generateContent({
           model: STABLE_MODEL,
@@ -67,42 +77,38 @@ export const AIOrchestrator = {
           count: data.count || 5
         };
       } catch (e) {
-        console.error("Intent Error:", e);
         return { intent: "UNKNOWN", subject: "General" };
       }
     }
   },
 
   evaluateWorkFlow: async (imageBuffer: string, mimeType: string, onProgress?: (msg: string) => void): Promise<Omit<Submission, "id" | "timestamp" | "imageUrl">> => {
-    const ai = getEngine();
-    
-    // Step 1: Attempt Keyless Local Perception
-    onProgress?.("Extracting text via Neural OCR...");
+    onProgress?.("Running Local Perception...");
     const localSignal = await AIOrchestrator.perception.extractText(`data:${mimeType};base64,${imageBuffer}`);
     
-    // Step 2: Reasoning & Intelligence Generation
-    onProgress?.("Synthesizing learning intelligence...");
-    
-    const prompt = `
-      ANALYZE STUDENT WORK.
-      OCR SIGNAL: "${localSignal.text}"
-      
-      INSTRUCTIONS:
-      1. Identify the subject and topic.
-      2. Evaluate accuracy and score (0-100).
-      3. Provide pedagogical feedback that identifies conceptual vs procedural gaps.
-      4. List 3 growth steps.
-      
-      Return as JSON matching the schema.
-    `;
+    const ai = getEngine();
+    if (!ai) {
+      // Return Keyless Signal Summary - No authoritative grade
+      return {
+        subject: "Detected Artifact",
+        topic: "Local Scan",
+        score: null,
+        feedback: "Local perception captured text signal. Full pedagogical reasoning requires an AI bridge.",
+        improvementSteps: ["Manually review extracted text", "Connect reasoning engine for grading"],
+        confidenceScore: localSignal.confidence,
+        reasoningType: 'LOCAL',
+        rawText: localSignal.text
+      };
+    }
 
+    onProgress?.("Synthesizing Intelligence...");
     try {
       const response = await ai.models.generateContent({
         model: STABLE_MODEL,
         contents: [{
           parts: [
             { inlineData: { data: imageBuffer, mimeType: mimeType } },
-            { text: prompt }
+            { text: `ANALYZE STUDENT WORK. OCR SIGNAL: "${localSignal.text}". Identify subject, topic, grade (0-100), and feedback.` }
           ]
         }],
         config: {
@@ -125,35 +131,42 @@ export const AIOrchestrator = {
       return {
         subject: result.subject || "Academic Work",
         topic: result.topic || "Diagnostic",
-        score: result.score || 0,
-        feedback: result.feedback || "Processed signal successfully.",
-        improvementSteps: result.improvementSteps || ["Continue practice"],
-        confidenceScore: localSignal.confidence || 0.85
+        score: result.score,
+        feedback: result.feedback,
+        improvementSteps: result.improvementSteps,
+        confidenceScore: localSignal.confidence,
+        reasoningType: 'AI',
+        rawText: localSignal.text
       };
     } catch (e) {
-      console.error("Intelligence Synthesis Failed:", e);
-      // Fallback for demonstration if API is unreachable
       return {
-        subject: "Detected Subject",
-        topic: "General Diagnostic",
-        score: 75,
-        feedback: "The intelligence engine encountered a connectivity bottleneck, but local signals suggest progress in this area.",
-        improvementSteps: ["Review core principles", "Focus on consistency", "Retry analysis"],
-        confidenceScore: 0.5
+        subject: "Detected Artifact",
+        topic: "Diagnostic",
+        score: null,
+        feedback: "Reasoning layer failed to respond. Falling back to perception signal.",
+        improvementSteps: ["Retry with stable connection"],
+        confidenceScore: localSignal.confidence,
+        reasoningType: 'LOCAL',
+        rawText: localSignal.text
       };
     }
   },
 
   generatePracticeFlow: async (prompt: string): Promise<Question[]> => {
     const ai = getEngine();
-    const context = await AIOrchestrator.interpretation.parseIntent(prompt);
+    if (!ai) {
+      return [{ 
+        id: "DEMO-1", 
+        text: "Intelligence Key Required: Practice generation is a reasoning-only feature. Please provide a Gemini API Key to continue.", 
+        type: "LOCKED" 
+      }];
+    }
 
+    const context = await AIOrchestrator.interpretation.parseIntent(prompt);
     try {
       const response = await ai.models.generateContent({
         model: STABLE_MODEL,
-        contents: [{ 
-          parts: [{ text: `Generate ${context.count} ${context.difficulty} questions for ${context.subject}. Topic: ${context.topic}. Include IDs.` }] 
-        }],
+        contents: [{ parts: [{ text: `Generate questions for ${context.subject}. Topic: ${context.topic}.` }] }],
         config: {
           responseMimeType: "application/json",
           responseSchema: {
@@ -170,11 +183,9 @@ export const AIOrchestrator = {
           }
         }
       });
-
       return JSON.parse(response.text || "[]");
     } catch (e) {
-      console.error("Practice Generation Failed:", e);
-      return [{ id: "ERR-1", text: "Unable to generate live questions. Please try again.", type: "ERROR" }];
+      return [{ id: "ERR-1", text: "Reasoning engine unavailable.", type: "ERROR" }];
     }
   }
 };
