@@ -13,7 +13,8 @@
     "react-dom": "^19.2.3",
     "lucide-react": "0.344.0",
     "@google/genai": "latest",
-    "@supabase/supabase-js": "latest"
+    "@supabase/supabase-js": "latest",
+    "tesseract.js": "5.0.5"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
