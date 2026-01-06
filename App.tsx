@@ -23,15 +23,12 @@ const App: React.FC = () => {
   const [isGuest, setIsGuest] = useState(false);
   const [routeParams, setRouteParams] = useState<{ subject?: string; topic?: string }>({});
   
-  // Persistence states - Auth users only
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [practiceSets, setPracticeSets] = useState<PracticeSet[]>([]);
   
-  // In-memory states - Guests only (Cleared on refresh)
   const [guestSubmissions, setGuestSubmissions] = useState<Submission[]>([]);
   const [guestPracticeSets, setGuestPracticeSets] = useState<PracticeSet[]>([]);
 
-  // Theme state
   const [theme, setTheme] = useState<Theme>(() => {
     return (localStorage.getItem('eduvane-theme') as Theme) || 'system';
   });
@@ -57,35 +54,6 @@ const App: React.FC = () => {
     return () => mediaQuery.removeEventListener('change', listener);
   }, [theme]);
 
-  useEffect(() => {
-    const init = async () => {
-      if (SupabaseService.isConfigured()) {
-        const { data: { session: currentSession } } = await supabase!.auth.getSession();
-        setSession(currentSession);
-        if (currentSession) await fetchUserData(currentSession.user.id);
-        else setLoading(false);
-
-        const { data: { subscription } } = supabase!.auth.onAuthStateChange((_event, newSession) => {
-          setSession(newSession);
-          if (newSession) {
-            fetchUserData(newSession.user.id);
-            setIsGuest(false);
-            setView('DASHBOARD'); // Auto-route to dashboard on success
-          } else {
-            setProfile(null);
-            setSubmissions([]);
-            setPracticeSets([]);
-            setLoading(false);
-          }
-        });
-        return () => subscription.unsubscribe();
-      } else {
-        setLoading(false);
-      }
-    };
-    init();
-  }, []);
-
   const fetchUserData = async (userId: string) => {
     setLoading(true);
     try {
@@ -96,13 +64,70 @@ const App: React.FC = () => {
       ]);
       setSubmissions(subs);
       setPracticeSets(sets);
-      setProfile(prof || { id: userId, email: session?.user?.email || '', xp_total: 0 });
+      setProfile(prof || { id: userId, email: 'user@eduvane.ai', xp_total: 0 });
     } catch (e) {
       console.error("Error fetching user data:", e);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const init = async () => {
+      // Handle Demo Login event
+      const onDemoLogin = () => {
+        const demoUser = JSON.parse(localStorage.getItem('eduvane_demo_session') || '{}');
+        if (demoUser.id) {
+          setSession({ user: demoUser });
+          setIsGuest(false);
+          setView('DASHBOARD');
+          fetchUserData(demoUser.id);
+        }
+      };
+      window.addEventListener('eduvane_demo_login', onDemoLogin);
+
+      // Check existing sessions (Supabase or Demo)
+      const demoSession = localStorage.getItem('eduvane_demo_session');
+      if (SupabaseService.isConfigured()) {
+        const { data: { session: currentSession } } = await supabase!.auth.getSession();
+        if (currentSession) {
+          setSession(currentSession);
+          await fetchUserData(currentSession.user.id);
+        } else if (demoSession) {
+          onDemoLogin();
+        } else {
+          setLoading(false);
+        }
+
+        const { data: { subscription } } = supabase!.auth.onAuthStateChange((_event, newSession) => {
+          if (newSession) {
+            setSession(newSession);
+            fetchUserData(newSession.user.id);
+            setIsGuest(false);
+            setView('DASHBOARD');
+          } else if (!localStorage.getItem('eduvane_demo_session')) {
+            setSession(null);
+            setProfile(null);
+            setSubmissions([]);
+            setPracticeSets([]);
+            setLoading(false);
+          }
+        });
+        return () => {
+          subscription.unsubscribe();
+          window.removeEventListener('eduvane_demo_login', onDemoLogin);
+        };
+      } else {
+        if (demoSession) {
+          onDemoLogin();
+        } else {
+          setLoading(false);
+        }
+        return () => window.removeEventListener('eduvane_demo_login', onDemoLogin);
+      }
+    };
+    init();
+  }, []);
 
   const handleGuestStart = () => {
     setIsGuest(true);
@@ -122,13 +147,11 @@ const App: React.FC = () => {
   const handleSignOut = async () => {
     setLoading(true);
     try {
-      if (SupabaseService.isConfigured() && session) {
-        await SupabaseService.auth.signOut();
-      }
+      await SupabaseService.auth.signOut();
       setIsGuest(false);
       setSession(null);
       setProfile(null);
-      setView('DASHBOARD'); // Will trigger LandingPage since session/guest are null
+      setView('DASHBOARD');
       setSubmissions([]);
       setPracticeSets([]);
       setGuestSubmissions([]);
@@ -180,7 +203,6 @@ const App: React.FC = () => {
     return <Monitor size={18} />;
   };
 
-  // Auth Routing Guard
   if (!session && !isGuest) {
     if (view === 'AUTH') {
       return (
@@ -202,7 +224,7 @@ const App: React.FC = () => {
   if (loading) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#F7F9FC] dark:bg-slate-950 p-6 text-center">
       <Loader2 className="animate-spin text-[#1FA2A6] mb-4" size={32} />
-      <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Verifying access...</p>
+      <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Reviewing your profile...</p>
     </div>
   );
 
@@ -214,7 +236,7 @@ const App: React.FC = () => {
       {isGuest && (
         <div className="bg-[#1E3A5F] dark:bg-slate-900 text-white/80 px-4 py-2 text-[11px] font-medium flex items-center justify-center gap-2 z-[60]">
           <Info size={14} className="text-[#1FA2A6]" /> 
-          Guest Mode: Your activity is not saved and will be cleared on refresh.
+          Guest Mode: Your activity is temporary and will be cleared on refresh.
         </div>
       )}
       
@@ -226,10 +248,10 @@ const App: React.FC = () => {
           </div>
           
           <nav className="hidden md:flex items-center gap-8">
-            <button onClick={() => setView('DASHBOARD')} className={`text-sm font-semibold transition-colors ${view === 'DASHBOARD' ? 'text-[#1E3A5F] dark:text-slate-100' : 'text-slate-400 hover:text-[#1FA2A6]'}`}>Hub</button>
+            <button onClick={() => setView('DASHBOARD')} className={`text-sm font-semibold transition-colors ${view === 'DASHBOARD' ? 'text-[#1E3A5F] dark:text-slate-100' : 'text-slate-400 hover:text-[#1FA2A6]'}`}>Dashboard</button>
             <button onClick={() => setView('UPLOAD')} className={`text-sm font-semibold transition-colors ${view === 'UPLOAD' ? 'text-[#1E3A5F] dark:text-slate-100' : 'text-slate-400 hover:text-[#1FA2A6]'}`}>Upload</button>
             <button onClick={() => setView('PRACTICE')} className={`text-sm font-semibold transition-colors ${view === 'PRACTICE' ? 'text-[#1E3A5F] dark:text-slate-100' : 'text-slate-400 hover:text-[#1FA2A6]'}`}>Practice</button>
-            <button onClick={() => setView('HISTORY')} className={`text-sm font-semibold transition-colors ${view === 'HISTORY' ? 'text-[#1E3A5F] dark:text-slate-100' : 'text-slate-400 hover:text-[#1FA2A6]'}`}>History</button>
+            <button onClick={() => setView('HISTORY')} className={`text-sm font-semibold transition-colors ${view === 'HISTORY' ? 'text-[#1E3A5F] dark:text-slate-100' : 'text-slate-400 hover:text-[#1FA2A6]'}`}>Activity</button>
           </nav>
 
           <div className="flex items-center gap-4">
@@ -243,7 +265,7 @@ const App: React.FC = () => {
             <button 
               onClick={toggleTheme} 
               className="p-2 text-slate-400 hover:text-[#1FA2A6] dark:hover:text-slate-100 transition-colors"
-              title={`Switch Theme (Current: ${theme})`}
+              title={`Switch Theme`}
             >
               <ThemeIcon />
             </button>
@@ -287,7 +309,6 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {/* Mobile Bottom Navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 px-6 py-3 flex justify-between items-center z-50 shadow-lg transition-colors">
         <button onClick={() => setView('DASHBOARD')} className={`flex flex-col items-center gap-1 flex-1 ${view === 'DASHBOARD' ? 'text-[#1FA2A6]' : 'text-slate-400'}`}>
           <LayoutDashboard size={20} />
@@ -303,7 +324,7 @@ const App: React.FC = () => {
         </button>
         <button onClick={() => setView('HISTORY')} className={`flex flex-col items-center gap-1 flex-1 ${view === 'HISTORY' ? 'text-[#1FA2A6]' : 'text-slate-400'}`}>
           <History size={20} />
-          <span className="text-[10px] font-bold">Timeline</span>
+          <span className="text-[10px] font-bold">History</span>
         </button>
       </nav>
     </div>

@@ -5,7 +5,7 @@ import Tesseract from 'tesseract.js';
 
 /**
  * EDUVANE CORE - PRODUCTION ORCHESTRATOR
- * Design Mandate: Keyless primary perception with optional AI reasoning.
+ * Design Mandate: Support, pedagogical precision, and keyless resilience.
  */
 
 const STABLE_MODEL = 'gemini-3-flash-preview';
@@ -17,7 +17,6 @@ const getEngine = () => {
 };
 
 export const AIOrchestrator = {
-  // Local Perception Engine (Truly Keyless)
   perception: {
     extractText: async (imageSource: string): Promise<{ text: string; confidence: number }> => {
       try {
@@ -27,7 +26,7 @@ export const AIOrchestrator = {
           confidence: result.data.confidence / 100
         };
       } catch (e) {
-        console.error("Local OCR Failed:", e);
+        console.error("OCR Error:", e);
         return { text: "", confidence: 0 };
       }
     }
@@ -37,21 +36,20 @@ export const AIOrchestrator = {
     parseIntent: async (input: string): Promise<IntentResult> => {
       const ai = getEngine();
       if (!ai) {
-        // Deterministic Fallback for Keyless Mode
         const low = input.toLowerCase();
         if (low.includes("practice") || low.includes("question") || low.includes("test")) {
-          return { intent: "PRACTICE", subject: "General", topic: input };
+          return { intent: "PRACTICE", subject: "Academic", topic: input };
         }
         if (low.includes("analyze") || low.includes("upload") || low.includes("check")) {
-          return { intent: "ANALYZE", subject: "General" };
+          return { intent: "ANALYZE", subject: "Academic" };
         }
-        return { intent: "UNKNOWN", subject: "General" };
+        return { intent: "UNKNOWN", subject: "Academic" };
       }
 
       try {
         const response = await ai.models.generateContent({
           model: STABLE_MODEL,
-          contents: [{ parts: [{ text: `Identify intent, subject, and topic for: "${input}"` }] }],
+          contents: [{ parts: [{ text: `Identify the learning intent for: "${input}". Provide subject and topic.` }] }],
           config: {
             responseMimeType: "application/json",
             responseSchema: {
@@ -71,44 +69,43 @@ export const AIOrchestrator = {
         const data = JSON.parse(response.text || "{}");
         return {
           intent: (data.intent as any) || "UNKNOWN",
-          subject: data.subject || "General",
-          topic: data.topic || "General",
+          subject: data.subject || "Academic",
+          topic: data.topic || "Academic",
           difficulty: (data.difficulty as any) || "Medium",
           count: data.count || 5
         };
       } catch (e) {
-        return { intent: "UNKNOWN", subject: "General" };
+        return { intent: "UNKNOWN", subject: "Academic" };
       }
     }
   },
 
   evaluateWorkFlow: async (imageBuffer: string, mimeType: string, onProgress?: (msg: string) => void): Promise<Omit<Submission, "id" | "timestamp" | "imageUrl">> => {
-    onProgress?.("Running Local Perception...");
+    onProgress?.("Reading the work...");
     const localSignal = await AIOrchestrator.perception.extractText(`data:${mimeType};base64,${imageBuffer}`);
     
     const ai = getEngine();
     if (!ai) {
-      // Return Keyless Signal Summary - No authoritative grade
       return {
-        subject: "Detected Artifact",
-        topic: "Local Scan",
+        subject: "Detected Work",
+        topic: "Preview Mode",
         score: null,
-        feedback: "Local perception captured text signal. Full pedagogical reasoning requires an AI bridge.",
-        improvementSteps: ["Manually review extracted text", "Connect reasoning engine for grading"],
+        feedback: "We've captured your work. Full pedagogical feedback requires an active connection to our reasoning engine.",
+        improvementSteps: ["Review your answers manually for now", "Connect to the full engine for detailed grading"],
         confidenceScore: localSignal.confidence,
         reasoningType: 'LOCAL',
         rawText: localSignal.text
       };
     }
 
-    onProgress?.("Synthesizing Intelligence...");
+    onProgress?.("Identifying areas for improvement...");
     try {
       const response = await ai.models.generateContent({
         model: STABLE_MODEL,
         contents: [{
           parts: [
             { inlineData: { data: imageBuffer, mimeType: mimeType } },
-            { text: `ANALYZE STUDENT WORK. OCR SIGNAL: "${localSignal.text}". Identify subject, topic, grade (0-100), and feedback.` }
+            { text: `As a supportive teacher, analyze this work. OCR hint: "${localSignal.text}". Output a score (0-100), a short paragraph of encouraging pedagogical feedback, and 3 specific steps for improvement.` }
           ]
         }],
         config: {
@@ -129,8 +126,8 @@ export const AIOrchestrator = {
 
       const result = JSON.parse(response.text || "{}");
       return {
-        subject: result.subject || "Academic Work",
-        topic: result.topic || "Diagnostic",
+        subject: result.subject || "Subject Detected",
+        topic: result.topic || "Review",
         score: result.score,
         feedback: result.feedback,
         improvementSteps: result.improvementSteps,
@@ -140,11 +137,11 @@ export const AIOrchestrator = {
       };
     } catch (e) {
       return {
-        subject: "Detected Artifact",
-        topic: "Diagnostic",
+        subject: "Academic Work",
+        topic: "Review",
         score: null,
-        feedback: "Reasoning layer failed to respond. Falling back to perception signal.",
-        improvementSteps: ["Retry with stable connection"],
+        feedback: "Our reasoning engine is momentarily unavailable. We can still see your work, but we'll need to wait for a connection to grade it.",
+        improvementSteps: ["Please try again in a few moments"],
         confidenceScore: localSignal.confidence,
         reasoningType: 'LOCAL',
         rawText: localSignal.text
@@ -157,16 +154,15 @@ export const AIOrchestrator = {
     if (!ai) {
       return [{ 
         id: "DEMO-1", 
-        text: "Intelligence Key Required: Practice generation is a reasoning-only feature. Please provide a Gemini API Key to continue.", 
+        text: "Please connect your reasoning engine to generate custom practice sets.", 
         type: "LOCKED" 
       }];
     }
 
-    const context = await AIOrchestrator.interpretation.parseIntent(prompt);
     try {
       const response = await ai.models.generateContent({
         model: STABLE_MODEL,
-        contents: [{ parts: [{ text: `Generate questions for ${context.subject}. Topic: ${context.topic}.` }] }],
+        contents: [{ parts: [{ text: `Generate clear, academic practice questions based on: ${prompt}. Return a list of objects with text and type.` }] }],
         config: {
           responseMimeType: "application/json",
           responseSchema: {
@@ -185,7 +181,7 @@ export const AIOrchestrator = {
       });
       return JSON.parse(response.text || "[]");
     } catch (e) {
-      return [{ id: "ERR-1", text: "Reasoning engine unavailable.", type: "ERROR" }];
+      return [{ id: "ERR-1", text: "We're having trouble reaching the learning engine. Please try again soon.", type: "ERROR" }];
     }
   }
 };
