@@ -44,8 +44,7 @@ export const UploadFlow: React.FC<UploadFlowProps> = ({ userId, onComplete, onBa
           timestamp: new Date().toISOString(),
           imageUrl: publicUrl
         };
-        
-        await SupabaseService.submissions.save(userId, submission);
+
         setResult(submission);
         onComplete(submission);
         setState('RESULT');

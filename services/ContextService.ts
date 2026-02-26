@@ -1,11 +1,20 @@
 
-import { EduvaneMode, ValidationStatus } from '../types.ts';
+import { EduvaneMode, ValidationStatus } from "../types.ts";
 
+/**
+ * DECOMMISSIONED
+ * Validation context decisions now belong to Python AI Engine policy output.
+ */
 export const ContextService = {
-  getInitialStatus: (mode: EduvaneMode, confidence: number): ValidationStatus => {
-    if (mode === 'STANDALONE') return 'RELEASED';
-    return confidence >= 0.95 ? 'PENDING_REVIEW' : 'PENDING_REVIEW'; // Institutional always requires a look
+  getInitialStatus: (_mode: EduvaneMode, _confidence: number): ValidationStatus => {
+    throw new Error(
+      "ContextService is decommissioned. Use validation state from Python AI Engine responses."
+    );
   },
-  
-  shouldShowReleaseGate: (mode: EduvaneMode): boolean => mode === 'INSTITUTIONAL'
+
+  shouldShowReleaseGate: (_mode: EduvaneMode): boolean => {
+    throw new Error(
+      "ContextService is decommissioned. Release-gate policy must come from backend and AI engine."
+    );
+  }
 };

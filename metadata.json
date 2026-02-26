@@ -1,6 +1,10 @@
 {
   "name": "Eduvane - Learning Intelligence MVP",
   "description": "Subject-agnostic learning intelligence platform with conversational intent routing and persistent progress tracking.",
+  "releaseVersion": "V0.1.0",
+  "productBinding": "Eduvane AI \u2014 Bound to Product Definition v1.2",
+  "architecturalPolicy": "Architectural Policy Compliant",
+  "implementationOwner": "Detova Labs Implementation",
   "requestFramePermissions": [
     "camera"
   ]

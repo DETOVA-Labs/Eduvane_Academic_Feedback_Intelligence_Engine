@@ -1,21 +1,21 @@
 {
   "name": "eduvane",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "dev:web": "npm --prefix apps/web run dev",
+    "dev:gateway": "npm --prefix apps/gateway run dev"
   },
   "dependencies": {
     "next": "14.1.0",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "lucide-react": "0.344.0",
-    "@google/genai": "^0.2.0",
-    "@supabase/supabase-js": "2.45.4",
-    "tesseract.js": "5.0.5"
+    "@supabase/supabase-js": "2.45.4"
   },
   "devDependencies": {
     "@types/node": "20.11.19",

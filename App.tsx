@@ -168,18 +168,18 @@ const App: React.FC = () => {
   const saveSubmission = async (sub: Submission) => {
     if (session && currentUserId) {
       await SupabaseService.submissions.save(currentUserId, sub);
-      setSubmissions([sub, ...submissions]);
+      setSubmissions((current) => [sub, ...current]);
     } else {
-      setGuestSubmissions([sub, ...guestSubmissions]);
+      setGuestSubmissions((current) => [sub, ...current]);
     }
   };
 
   const savePracticeSet = async (set: PracticeSet) => {
     if (session && currentUserId) {
       await SupabaseService.practice.save(currentUserId, set);
-      setPracticeSets([set, ...practiceSets]);
+      setPracticeSets((current) => [set, ...current]);
     } else {
-      setGuestPracticeSets([set, ...guestPracticeSets]);
+      setGuestPracticeSets((current) => [set, ...current]);
     }
   };
 
@@ -198,9 +198,8 @@ const App: React.FC = () => {
   };
 
   const ThemeIcon = () => {
-    if (theme === 'light') return <Sun size={18} />;
-    if (theme === 'dark') return <Moon size={18} />;
-    return <Monitor size={18} />;
+    const Icon = (theme === 'light' ? Sun : theme === 'dark' ? Moon : Monitor) as React.ComponentType<{ size?: number }>;
+    return <Icon size={18} />;
   };
 
   if (!session && !isGuest) {

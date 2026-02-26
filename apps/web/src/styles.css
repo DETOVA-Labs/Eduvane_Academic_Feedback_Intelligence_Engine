@@ -1,0 +1,254 @@
+:root {
+  color: #12344d;
+  background: #f3f7fb;
+  font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  background: #0f2438;
+  color: #e8f2fb;
+  padding: 1rem;
+  border-right: 1px solid #1b3e5d;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.sidebar-header h1 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.sidebar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.empty-note {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #99b4cb;
+}
+
+.session-item {
+  text-align: left;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid transparent;
+  background: #122c45;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.session-item.active {
+  border-color: #4cb9d4;
+  background: #163652;
+}
+
+.session-title {
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-time {
+  font-size: 0.75rem;
+  color: #8faec8;
+}
+
+.chat-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: #f3f7fb;
+}
+
+.role-prompt {
+  margin: 1rem;
+  background: #fff;
+  border: 1px solid #d6e1ea;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+}
+
+.role-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.role-actions button {
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: #0f2438;
+  color: #fff;
+}
+
+.chat-thread {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem 1.25rem 8.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.empty-chat {
+  margin: auto;
+  color: #6c8398;
+  max-width: 420px;
+  text-align: center;
+}
+
+.bubble {
+  max-width: min(760px, 85%);
+  border-radius: 0.85rem;
+  padding: 0.8rem 0.9rem;
+  line-height: 1.45;
+}
+
+.bubble p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.bubble time {
+  display: block;
+  margin-top: 0.45rem;
+  font-size: 0.72rem;
+  color: #7d93a6;
+}
+
+.bubble.user {
+  margin-left: auto;
+  background: #d6eef6;
+  border: 1px solid #b4dce9;
+}
+
+.bubble.assistant {
+  margin-right: auto;
+  background: #fff;
+  border: 1px solid #d6e1ea;
+}
+
+.bubble.thinking {
+  opacity: 0.75;
+}
+
+.composer-dock {
+  position: sticky;
+  bottom: 0;
+  padding: 1rem;
+  background: linear-gradient(
+    to top,
+    rgba(243, 247, 251, 1) 70%,
+    rgba(243, 247, 251, 0.86) 88%,
+    rgba(243, 247, 251, 0)
+  );
+}
+
+.composer {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.composer-input-wrap {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.5rem;
+  align-items: end;
+  padding: 0.6rem;
+  border: 1px solid #cddae6;
+  border-radius: 0.9rem;
+  background: #fff;
+}
+
+.composer-input {
+  resize: none;
+  border: none;
+  outline: none;
+  min-height: 44px;
+  font: inherit;
+  padding: 0.5rem 0.25rem;
+  background: transparent;
+}
+
+.upload-button,
+.send-button,
+.ghost-button {
+  border: none;
+  border-radius: 0.6rem;
+  padding: 0.55rem 0.75rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.upload-button {
+  background: #e7eff6;
+  color: #0f2438;
+}
+
+.send-button {
+  background: #0f2438;
+  color: #fff;
+}
+
+.send-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.ghost-button {
+  background: transparent;
+  color: #4f667a;
+}
+
+.upload-list {
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
+  color: #4f667a;
+  font-size: 0.85rem;
+}
+
+.error-text {
+  margin: 0.75rem 1.25rem 0;
+  color: #9b1f1f;
+  font-size: 0.86rem;
+}
+
+@media (max-width: 900px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    display: none;
+  }
+}
