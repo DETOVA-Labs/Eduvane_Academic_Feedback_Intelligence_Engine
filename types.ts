@@ -11,6 +11,9 @@ export interface UserProfile {
   id: string;
   email: string;
   xp_total: number;
+  first_name?: string;
+  last_name?: string;
+  google_user_id?: string;
 }
 
 export interface IntentResult {

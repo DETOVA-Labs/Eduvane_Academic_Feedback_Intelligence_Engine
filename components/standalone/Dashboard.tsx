@@ -4,123 +4,344 @@
  * Notes: Keep exports focused and update comments when behavior changes.
  */
 
-
-import React, { useState } from 'react';
-import { Send, Loader2, Sparkles, TrendingUp, ChevronRight, Camera, FileText, Search } from 'lucide-react';
-import { Submission, UserProfile } from '../../types.ts';
+import React, { useMemo, useRef, useState } from 'react';
+import { Menu, Plus, Paperclip, Send, X, Loader2 } from 'lucide-react';
 import { AIOrchestrator } from '../../services/AIOrchestrator.ts';
+import { SupabaseService } from '../../services/SupabaseService.ts';
+import { PracticeSet, Submission, UserProfile } from '../../types.ts';
+
+type ChatMessage = {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  createdAt: string;
+  attachmentName?: string;
+};
+
+type WorkspaceSession = {
+  id: string;
+  title: string;
+  updatedAt: string;
+  messages: ChatMessage[];
+};
 
 interface DashboardProps {
-  onAction: (view: 'UPLOAD' | 'PRACTICE' | 'HISTORY') => void;
-  onCommand: (intent: string, subject?: string, topic?: string) => void;
-  submissions: Submission[];
+  userId: string;
   profile: UserProfile | null;
+  submissions: Submission[];
+  practiceSets: PracticeSet[];
+  onSaveSubmission: (sub: Submission) => Promise<void>;
+  onSavePracticeSet: (set: PracticeSet) => Promise<void>;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ onAction, onCommand, submissions, profile }) => {
-  const [command, setCommand] = useState('');
-  const [isRouting, setIsRouting] = useState(false);
+const createAssistantMessage = (content: string): ChatMessage => ({
+  id: crypto.randomUUID(),
+  role: 'assistant',
+  content,
+  createdAt: new Date().toISOString()
+});
 
-  const handleCommandSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!command.trim()) return;
-    setIsRouting(true);
+const createUserMessage = (content: string, attachmentName?: string): ChatMessage => ({
+  id: crypto.randomUUID(),
+  role: 'user',
+  content,
+  createdAt: new Date().toISOString(),
+  attachmentName
+});
+
+export const Dashboard: React.FC<DashboardProps> = ({
+  userId,
+  profile,
+  submissions,
+  practiceSets,
+  onSaveSubmission,
+  onSavePracticeSet
+}) => {
+  const firstName = profile?.first_name?.trim();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [inputText, setInputText] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isSending, setIsSending] = useState(false);
+  const [sessions, setSessions] = useState<WorkspaceSession[]>([
+    {
+      id: crypto.randomUUID(),
+      title: 'New Workspace',
+      updatedAt: new Date().toISOString(),
+      messages: [
+        createAssistantMessage(
+          firstName
+            ? `Hi ${firstName} - I am ready when you are. Type anything or upload work to analyze.`
+            : 'Hi - I am ready when you are. Type anything or upload work to analyze.'
+        )
+      ]
+    }
+  ]);
+  const [activeSessionId, setActiveSessionId] = useState<string>(() => sessions[0]?.id || crypto.randomUUID());
+
+  const activeSession = useMemo(
+    () => sessions.find((session) => session.id === activeSessionId) || sessions[0],
+    [sessions, activeSessionId]
+  );
+
+  const setSessionMessages = (sessionId: string, updater: (messages: ChatMessage[]) => ChatMessage[]) => {
+    setSessions((current) =>
+      current.map((session) => {
+        if (session.id !== sessionId) return session;
+        const nextMessages = updater(session.messages);
+        return {
+          ...session,
+          messages: nextMessages,
+          updatedAt: new Date().toISOString(),
+          title:
+            session.messages.length <= 1
+              ? nextMessages[0]?.content.slice(0, 40) || session.title
+              : session.title
+        };
+      })
+    );
+  };
+
+  const handleNewWorkspace = () => {
+    const freshId = crypto.randomUUID();
+    const newSession: WorkspaceSession = {
+      id: freshId,
+      title: 'New Workspace',
+      updatedAt: new Date().toISOString(),
+      messages: [
+        createAssistantMessage(
+          firstName
+            ? `Hi ${firstName} - start a prompt or upload a file.`
+            : 'Start a prompt or upload a file.'
+        )
+      ]
+    };
+    setSessions((current) => [newSession, ...current]);
+    setActiveSessionId(freshId);
+    setSidebarOpen(false);
+  };
+
+  const fileToBase64 = async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const raw = reader.result as string;
+        resolve((raw.split(',')[1] || '').trim());
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleSend = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!activeSession || isSending) return;
+    if (!inputText.trim() && !selectedFile) return;
+
+    const userText = inputText.trim() || 'Please analyze this uploaded work.';
+    const userMessage = createUserMessage(userText, selectedFile?.name);
+    const currentSessionId = activeSession.id;
+
+    setSessionMessages(currentSessionId, (messages) => [...messages, userMessage]);
+    setInputText('');
+    setSelectedFile(null);
+    setIsSending(true);
+
     try {
-      const result = await AIOrchestrator.interpretation.parseIntent(command);
-      setCommand('');
-      onCommand(result.intent, result.subject, result.topic);
-    } catch (e) {
-      console.error("Routing Error:", e);
+      if (selectedFile) {
+        const mimeType = selectedFile.type || 'image/jpeg';
+        const base64 = await fileToBase64(selectedFile);
+        const imageUrl = await SupabaseService.storage.upload(userId, base64);
+        const analysis = await AIOrchestrator.evaluateWorkFlow(base64, mimeType);
+        const submission: Submission = {
+          ...analysis,
+          id: crypto.randomUUID(),
+          timestamp: new Date().toISOString(),
+          imageUrl
+        };
+        await onSaveSubmission(submission);
+        const assistantReply = createAssistantMessage(
+          `${analysis.feedback}\n\nNext steps:\n${analysis.improvementSteps.map((step, i) => `${i + 1}. ${step}`).join('\n')}`
+        );
+        setSessionMessages(currentSessionId, (messages) => [...messages, assistantReply]);
+        return;
+      }
+
+      const intent = await AIOrchestrator.interpretation.parseIntent(userText);
+      if (intent.intent === 'PRACTICE') {
+        const questions = await AIOrchestrator.generatePracticeFlow(userText);
+        const newSet: PracticeSet = {
+          id: `SET-${Date.now()}`,
+          subject: intent.subject || 'Academic',
+          topic: intent.topic || intent.subject || 'Practice',
+          difficulty: 'Dynamic',
+          questions,
+          timestamp: new Date().toISOString()
+        };
+        await onSavePracticeSet(newSet);
+        const assistantReply = createAssistantMessage(
+          `Generated ${questions.length} practice questions for ${newSet.topic}:\n\n${questions
+            .map((question, index) => `${index + 1}. ${question.text}`)
+            .join('\n')}`
+        );
+        setSessionMessages(currentSessionId, (messages) => [...messages, assistantReply]);
+      } else if (intent.intent === 'HISTORY') {
+        const assistantReply = createAssistantMessage(
+          `You currently have ${submissions.length} submission review(s) and ${practiceSets.length} saved practice set(s).`
+        );
+        setSessionMessages(currentSessionId, (messages) => [...messages, assistantReply]);
+      } else {
+        const assistantReply = createAssistantMessage(
+          'I can help you analyze student work, generate targeted questions, or summarize your workspace history. Upload a file or ask directly.'
+        );
+        setSessionMessages(currentSessionId, (messages) => [...messages, assistantReply]);
+      }
+    } catch (error) {
+      setSessionMessages(currentSessionId, (messages) => [
+        ...messages,
+        createAssistantMessage('I could not complete that request right now. Please try again.')
+      ]);
     } finally {
-      setIsRouting(false);
+      setIsSending(false);
     }
   };
 
   return (
-    <div className="space-y-8 max-w-3xl mx-auto">
-      <header className="mb-2">
-        <h2 className="text-3xl font-bold text-[#1E3A5F] dark:text-slate-100">Welcome to Eduvane</h2>
-        <p className="text-slate-500 dark:text-slate-400 text-base mt-1">What would you like to do today?</p>
-      </header>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <button 
-          onClick={() => onAction('UPLOAD')}
-          className="bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200 dark:border-slate-800 text-left hover:border-[#1FA2A6] dark:hover:border-[#1FA2A6] transition-all group shadow-sm"
-        >
-          <div className="bg-[#1FA2A6]/10 p-4 rounded-xl w-fit mb-4 text-[#1FA2A6] group-hover:scale-110 transition-transform">
-            <Camera size={28} />
-          </div>
-          <h3 className="font-bold text-[#1E3A5F] dark:text-slate-100 text-xl">Upload student work</h3>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-2 leading-relaxed font-medium">Eduvane will review your work and give clear, supportive feedback.</p>
-        </button>
-
-        <button 
-          onClick={() => onAction('PRACTICE')}
-          className="bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200 dark:border-slate-800 text-left hover:border-[#1FA2A6] dark:hover:border-[#1FA2A6] transition-all group shadow-sm"
-        >
-          <div className="bg-[#1FA2A6]/10 p-4 rounded-xl w-fit mb-4 text-[#1FA2A6] group-hover:scale-110 transition-transform">
-            <Sparkles size={28} />
-          </div>
-          <h3 className="font-bold text-[#1E3A5F] dark:text-slate-100 text-xl">Generate practice</h3>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-2 leading-relaxed font-medium">Create new practice questions to test your knowledge.</p>
-        </button>
-      </div>
-
-      <section className="bg-[#1E3A5F] dark:bg-slate-900 p-8 rounded-2xl text-white shadow-xl">
-        <div className="flex items-center gap-2 mb-4">
-          <Search size={16} className="text-[#1FA2A6]" />
-          <h3 className="text-xs font-bold uppercase tracking-widest text-white/60">Quick Action</h3>
-        </div>
-        <form onSubmit={handleCommandSubmit} className="relative">
-          <input 
-            type="text"
-            value={command}
-            onChange={(e) => setCommand(e.target.value)}
-            placeholder="e.g. '10 questions on photosynthesis'..."
-            className="w-full bg-white/10 dark:bg-white/5 text-white rounded-xl py-5 px-6 pr-14 outline-none focus:ring-2 focus:ring-[#1FA2A6] transition-all placeholder:text-white/30 font-medium border border-white/10"
-            disabled={isRouting}
-          />
-          <button 
-            type="submit"
-            className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 bg-[#1FA2A6] rounded-lg text-white disabled:opacity-50 hover:bg-[#188b8e] transition-colors"
-            disabled={isRouting}
+    <div className="flex h-full min-h-0 gap-4 md:gap-6">
+      <aside
+        className={`${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        } fixed md:static inset-y-0 left-0 z-40 w-72 shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-transform duration-200`}
+      >
+        <div className="h-full flex flex-col p-4">
+          <button
+            type="button"
+            onClick={handleNewWorkspace}
+            className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#1E3A5F] text-white py-3 font-bold text-sm hover:bg-[#152a46] transition-colors"
           >
-            {isRouting ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
+            <Plus size={16} />
+            New Workspace
           </button>
-        </form>
-      </section>
 
-      {submissions.length > 0 && (
-        <section className="bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200 dark:border-slate-800 transition-colors shadow-sm">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <TrendingUp size={18} className="text-[#1FA2A6]" />
-              <h4 className="font-bold text-[#1E3A5F] dark:text-slate-100 text-sm uppercase tracking-wide">Recent activity</h4>
-            </div>
-            <button onClick={() => onAction('HISTORY')} className="text-xs font-bold text-[#1FA2A6] hover:underline">See full history</button>
-          </div>
-          <div className="space-y-2">
-            {submissions.slice(0, 3).map(s => (
-              <div key={s.id} onClick={() => onAction('HISTORY')} className="flex justify-between items-center p-4 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl cursor-pointer transition-colors border border-transparent hover:border-slate-100 dark:hover:border-slate-700">
-                <div className="flex items-center gap-4">
-                  <div className="bg-slate-50 dark:bg-slate-800 p-2.5 rounded-lg text-slate-400">
-                    <FileText size={20} />
-                  </div>
-                  <div>
-                    <p className="font-bold text-[#1E3A5F] dark:text-slate-100 text-base">{s.subject}</p>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{new Date(s.timestamp).toLocaleDateString()}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="font-black text-[#1FA2A6] text-lg">{s.score}%</span>
-                  <ChevronRight size={16} className="text-slate-300" />
-                </div>
-              </div>
+          <div className="mt-4 space-y-2 overflow-y-auto">
+            {sessions.map((session) => (
+              <button
+                key={session.id}
+                type="button"
+                onClick={() => {
+                  setActiveSessionId(session.id);
+                  setSidebarOpen(false);
+                }}
+                className={`w-full text-left rounded-xl px-3 py-3 border transition-colors ${
+                  session.id === activeSessionId
+                    ? 'border-[#1FA2A6] bg-[#1FA2A6]/5'
+                    : 'border-slate-200 dark:border-slate-700 hover:border-[#1FA2A6]/50'
+                }`}
+              >
+                <p className="text-sm font-semibold text-[#1E3A5F] dark:text-slate-100 truncate">{session.title}</p>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  {new Date(session.updatedAt).toLocaleString()}
+                </p>
+              </button>
             ))}
           </div>
-        </section>
+        </div>
+      </aside>
+
+      {sidebarOpen && (
+        <button
+          type="button"
+          aria-label="Close sidebar"
+          className="fixed inset-0 z-30 bg-slate-900/40 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
       )}
+
+      <section className="flex-1 min-h-0 flex flex-col">
+        <div className="shrink-0 pb-3">
+          <button
+            type="button"
+            className="md:hidden inline-flex items-center gap-2 text-xs font-bold text-slate-500"
+            onClick={() => setSidebarOpen(true)}
+          >
+            <Menu size={16} />
+            Workspaces
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto overscroll-y-contain px-1">
+          <div className="max-w-3xl mx-auto py-3 space-y-4">
+            {activeSession?.messages.map((message) => (
+              <article
+                key={message.id}
+                className={`rounded-2xl px-4 py-3 ${
+                  message.role === 'user'
+                    ? 'bg-[#1E3A5F] text-white ml-6'
+                    : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[#1E3A5F] dark:text-slate-100 mr-6'
+                }`}
+              >
+                {message.attachmentName && (
+                  <p className="text-[11px] mb-1 opacity-80">Attached: {message.attachmentName}</p>
+                )}
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+
+        <div className="shrink-0 pt-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] bg-gradient-to-t from-[#F7F9FC] via-[#F7F9FC]/95 to-transparent dark:from-slate-950 dark:via-slate-950/95">
+          <form
+            onSubmit={handleSend}
+            className="max-w-3xl mx-auto rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm p-2 flex items-end gap-2"
+          >
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="h-10 w-10 shrink-0 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 flex items-center justify-center hover:text-[#1FA2A6] transition-colors"
+            >
+              <Paperclip size={16} />
+            </button>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,application/pdf"
+              className="hidden"
+              onChange={(event) => setSelectedFile(event.target.files?.[0] || null)}
+            />
+
+            <div className="flex-1">
+              {selectedFile && (
+                <div className="mb-2 flex items-center gap-2 text-xs text-slate-500">
+                  <span className="truncate">Attached: {selectedFile.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedFile(null)}
+                    className="h-5 w-5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              )}
+              <input
+                type="text"
+                value={inputText}
+                onChange={(event) => setInputText(event.target.value)}
+                placeholder="Type anything, or upload work to analyze."
+                className="w-full h-10 bg-transparent px-2 outline-none text-sm text-[#1E3A5F] dark:text-slate-100 placeholder:text-slate-400"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isSending || (!inputText.trim() && !selectedFile)}
+              className="h-10 w-10 shrink-0 rounded-xl bg-[#1FA2A6] text-white flex items-center justify-center disabled:opacity-50 hover:bg-[#188b8e] transition-colors"
+            >
+              {isSending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+            </button>
+          </form>
+        </div>
+      </section>
     </div>
   );
 };

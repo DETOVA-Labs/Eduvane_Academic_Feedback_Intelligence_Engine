@@ -55,6 +55,31 @@ export interface AIEngineResponse {
   handwritingFeedback?: HandwritingFeedback;
 }
 
+export interface RealizationRequest {
+  sessionId: string;
+  intent: EduvaneIntent;
+  role: EduvaneRole;
+  userMessage: string;
+  baseResponseText: string;
+  baseFollowUpSuggestion?: string;
+  recentOutputs: string[];
+}
+
+export type RealizationFallbackReason =
+  | "disabled"
+  | "missing_config"
+  | "timeout"
+  | "provider_error"
+  | "invalid_output"
+  | "duplicate_output";
+
+export interface RealizationResult {
+  responseText: string;
+  followUpSuggestion?: string;
+  applied: boolean;
+  fallbackReason?: RealizationFallbackReason;
+}
+
 export interface ConversationSummary {
   sessionId: string;
   title: string;

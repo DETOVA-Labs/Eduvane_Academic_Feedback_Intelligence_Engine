@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { VaneIcon } from '../../constants.tsx';
-import { ArrowRight, LogIn, Sparkles, BookOpen } from 'lucide-react';
+import { ArrowRight, Sparkles, BookOpen } from 'lucide-react';
 
 interface LandingPageProps {
   onSignUp: () => void;
@@ -33,12 +33,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSignUp, onSignIn, on
 
         <div className="flex flex-col gap-4 w-full max-w-xs mb-8">
           <button 
-            onClick={onSignIn}
+            onClick={onSignUp}
             className="w-full bg-[#1E3A5F] dark:bg-slate-800 text-white px-6 py-4 rounded-xl font-bold text-base flex items-center justify-center gap-3 hover:bg-[#152a46] dark:hover:bg-slate-700 transition-all shadow-lg"
           >
-            Continue with Google <ArrowRight size={18} />
+            Get Started <ArrowRight size={18} />
           </button>
-          <p className="text-[11px] text-slate-400 font-medium">You can save your progress by signing in.</p>
+          <button
+            onClick={onSignIn}
+            className="w-full bg-white dark:bg-slate-900 text-[#1E3A5F] dark:text-slate-100 px-6 py-4 rounded-xl font-bold text-base border border-slate-200 dark:border-slate-700 hover:border-[#1FA2A6] transition-all shadow-sm"
+          >
+            Sign In
+          </button>
+          <p className="text-[11px] text-slate-400 font-medium">Create an account or sign in to save your progress.</p>
         </div>
 
         <button 

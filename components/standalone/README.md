@@ -17,3 +17,4 @@ This folder is part of the Eduvane codebase. Update this README with deeper deta
 ## Notes
 - Keep source files focused and cohesive.
 - Document architectural or integration changes here when this folder changes.
+- `LandingPage.tsx` exposes two authentication CTAs: `Get Started` (sign-up mode) and `Sign In` (sign-in mode).

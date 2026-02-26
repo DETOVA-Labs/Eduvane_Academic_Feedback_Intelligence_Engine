@@ -9,25 +9,20 @@ import React, { useState, useEffect } from 'react';
 import { LandingPage } from './components/standalone/LandingPage.tsx';
 import { AuthScreen } from './components/standalone/AuthScreen.tsx';
 import { Dashboard } from './components/standalone/Dashboard.tsx';
-import { UploadFlow } from './components/standalone/UploadFlow.tsx';
-import { PracticeFlow } from './components/standalone/PracticeFlow.tsx';
-import { HistoryView } from './components/standalone/HistoryView.tsx';
 import { VaneIcon } from './constants.tsx';
 import { Submission, PracticeSet, UserProfile } from './types.ts';
 import { SupabaseService, supabase } from './services/SupabaseService.ts';
-import { LogOut, Loader2, Info, LayoutDashboard, Camera, Sparkles, History, Moon, Sun, Monitor } from 'lucide-react';
+import { LogOut, Loader2, Info, Moon, Sun, Monitor } from 'lucide-react';
 
 type Theme = 'light' | 'dark' | 'system';
-type ViewState = 'DASHBOARD' | 'UPLOAD' | 'PRACTICE' | 'HISTORY' | 'AUTH';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [view, setView] = useState<ViewState>('DASHBOARD');
+  const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [loading, setLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
-  const [routeParams, setRouteParams] = useState<{ subject?: string; topic?: string }>({});
   
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [practiceSets, setPracticeSets] = useState<PracticeSet[]>([]);
@@ -84,9 +79,16 @@ const App: React.FC = () => {
       const onDemoLogin = () => {
         const demoUser = JSON.parse(localStorage.getItem('eduvane_demo_session') || '{}');
         if (demoUser.id) {
+          SupabaseService.profile.upsert({
+            id: demoUser.id,
+            email: demoUser.email || 'demo@eduvane.ai',
+            xp_total: 120,
+            first_name: demoUser.given_name,
+            last_name: demoUser.family_name,
+            google_user_id: demoUser.google_user_id
+          });
           setSession({ user: demoUser });
           setIsGuest(false);
-          setView('DASHBOARD');
           fetchUserData(demoUser.id);
         }
       };
@@ -97,6 +99,7 @@ const App: React.FC = () => {
       if (SupabaseService.isConfigured()) {
         const { data: { session: currentSession } } = await supabase!.auth.getSession();
         if (currentSession) {
+          await SupabaseService.profile.syncFromAuthUser(currentSession.user);
           setSession(currentSession);
           await fetchUserData(currentSession.user.id);
         } else if (demoSession) {
@@ -105,12 +108,12 @@ const App: React.FC = () => {
           setLoading(false);
         }
 
-        const { data: { subscription } } = supabase!.auth.onAuthStateChange((_event, newSession) => {
+        const { data: { subscription } } = supabase!.auth.onAuthStateChange(async (_event, newSession) => {
           if (newSession) {
+            await SupabaseService.profile.syncFromAuthUser(newSession.user);
             setSession(newSession);
-            fetchUserData(newSession.user.id);
+            await fetchUserData(newSession.user.id);
             setIsGuest(false);
-            setView('DASHBOARD');
           } else if (!localStorage.getItem('eduvane_demo_session')) {
             setSession(null);
             setProfile(null);
@@ -137,17 +140,16 @@ const App: React.FC = () => {
 
   const handleGuestStart = () => {
     setIsGuest(true);
-    setView('DASHBOARD');
   };
 
   const handleSignUpClick = () => {
     setAuthMode('signup');
-    setView('AUTH');
+    setShowAuth(true);
   };
 
   const handleSignInClick = () => {
     setAuthMode('signin');
-    setView('AUTH');
+    setShowAuth(true);
   };
 
   const handleSignOut = async () => {
@@ -157,7 +159,7 @@ const App: React.FC = () => {
       setIsGuest(false);
       setSession(null);
       setProfile(null);
-      setView('DASHBOARD');
+      setShowAuth(false);
       setSubmissions([]);
       setPracticeSets([]);
       setGuestSubmissions([]);
@@ -189,14 +191,6 @@ const App: React.FC = () => {
     }
   };
 
-  const handleCommand = (intent: string, subject?: string, topic?: string) => {
-    setRouteParams({ subject, topic });
-    if (intent === 'PRACTICE') setView('PRACTICE');
-    else if (intent === 'ANALYZE') setView('UPLOAD');
-    else if (intent === 'HISTORY') setView('HISTORY');
-    else setView('DASHBOARD');
-  };
-
   const toggleTheme = () => {
     if (theme === 'light') setTheme('dark');
     else if (theme === 'dark') setTheme('system');
@@ -209,11 +203,11 @@ const App: React.FC = () => {
   };
 
   if (!session && !isGuest) {
-    if (view === 'AUTH') {
+    if (showAuth) {
       return (
         <AuthScreen 
           initialMode={authMode} 
-          onBack={() => setView('DASHBOARD')}
+          onBack={() => setShowAuth(false)}
         />
       );
     }
@@ -237,9 +231,9 @@ const App: React.FC = () => {
   const activePracticeSets = session ? practiceSets : guestPracticeSets;
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F7F9FC] dark:bg-slate-950 transition-colors duration-200">
+    <div className="h-[100dvh] flex flex-col overflow-hidden bg-[#F7F9FC] dark:bg-slate-950 transition-colors duration-200">
       {isGuest && (
-        <div className="bg-[#1E3A5F] dark:bg-slate-900 text-white/80 px-4 py-2 text-[11px] font-medium flex items-center justify-center gap-2 z-[60]">
+        <div className="shrink-0 bg-[#1E3A5F] dark:bg-slate-900 text-white/80 px-4 py-2 text-[11px] font-medium flex items-center justify-center gap-2 z-[60]">
           <Info size={14} className="text-[#1FA2A6]" /> 
           Guest Mode: Your activity is temporary and will be cleared on refresh.
         </div>
@@ -247,26 +241,12 @@ const App: React.FC = () => {
       
       <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 p-4 md:px-8 sticky top-0 z-50 h-16 flex items-center transition-colors">
         <div className="max-w-6xl mx-auto w-full flex justify-between items-center">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => { setView('DASHBOARD'); setRouteParams({}); }}>
+          <div className="flex items-center gap-2">
             <VaneIcon color="#1FA2A6" size={24} />
             <h1 className="text-lg font-bold tracking-tight text-[#1E3A5F] dark:text-slate-100">Eduvane</h1>
           </div>
-          
-          <nav className="hidden md:flex items-center gap-8">
-            <button onClick={() => setView('DASHBOARD')} className={`text-sm font-semibold transition-colors ${view === 'DASHBOARD' ? 'text-[#1E3A5F] dark:text-slate-100' : 'text-slate-400 hover:text-[#1FA2A6]'}`}>Dashboard</button>
-            <button onClick={() => setView('UPLOAD')} className={`text-sm font-semibold transition-colors ${view === 'UPLOAD' ? 'text-[#1E3A5F] dark:text-slate-100' : 'text-slate-400 hover:text-[#1FA2A6]'}`}>Upload</button>
-            <button onClick={() => setView('PRACTICE')} className={`text-sm font-semibold transition-colors ${view === 'PRACTICE' ? 'text-[#1E3A5F] dark:text-slate-100' : 'text-slate-400 hover:text-[#1FA2A6]'}`}>Practice</button>
-            <button onClick={() => setView('HISTORY')} className={`text-sm font-semibold transition-colors ${view === 'HISTORY' ? 'text-[#1E3A5F] dark:text-slate-100' : 'text-slate-400 hover:text-[#1FA2A6]'}`}>Activity</button>
-          </nav>
 
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 px-3 py-1 rounded-full border border-slate-100 dark:border-slate-700">
-              <Sparkles size={12} className="text-[#1FA2A6]" />
-              <span className="text-xs font-bold text-[#1E3A5F] dark:text-slate-200">
-                {profile?.xp_total || 0} XP
-              </span>
-            </div>
-            
+          <div className="flex items-center gap-2">
             <button 
               onClick={toggleTheme} 
               className="p-2 text-slate-400 hover:text-[#1FA2A6] dark:hover:text-slate-100 transition-colors"
@@ -282,56 +262,16 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="flex-grow max-w-6xl mx-auto w-full py-6 px-4 mb-20 md:mb-0">
-        {view === 'DASHBOARD' && (
-          <Dashboard 
-            onAction={setView} 
-            onCommand={handleCommand}
-            submissions={activeSubmissions} 
-            profile={profile} 
-          />
-        )}
-        {view === 'UPLOAD' && (
-          <UploadFlow 
-            userId={currentUserId || 'GUEST'}
-            onComplete={saveSubmission} 
-            onBack={() => setView('DASHBOARD')} 
-          />
-        )}
-        {view === 'PRACTICE' && (
-          <PracticeFlow 
-            initialSubject={routeParams.subject}
-            onSave={savePracticeSet} 
-            onBack={() => setView('DASHBOARD')} 
-          />
-        )}
-        {view === 'HISTORY' && (
-          <HistoryView 
-            submissions={activeSubmissions} 
-            practiceSets={activePracticeSets} 
-            onBack={() => setView('DASHBOARD')} 
-          />
-        )}
+      <main className="flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain max-w-6xl mx-auto w-full py-4 px-4 md:py-6">
+        <Dashboard 
+          userId={currentUserId || 'GUEST'}
+          profile={profile}
+          submissions={activeSubmissions}
+          practiceSets={activePracticeSets}
+          onSaveSubmission={saveSubmission}
+          onSavePracticeSet={savePracticeSet}
+        />
       </main>
-
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 px-6 py-3 flex justify-between items-center z-50 shadow-lg transition-colors">
-        <button onClick={() => setView('DASHBOARD')} className={`flex flex-col items-center gap-1 flex-1 ${view === 'DASHBOARD' ? 'text-[#1FA2A6]' : 'text-slate-400'}`}>
-          <LayoutDashboard size={20} />
-          <span className="text-[10px] font-bold">Hub</span>
-        </button>
-        <button onClick={() => setView('UPLOAD')} className={`flex flex-col items-center gap-1 flex-1 ${view === 'UPLOAD' ? 'text-[#1FA2A6]' : 'text-slate-400'}`}>
-          <Camera size={20} />
-          <span className="text-[10px] font-bold">Upload</span>
-        </button>
-        <button onClick={() => setView('PRACTICE')} className={`flex flex-col items-center gap-1 flex-1 ${view === 'PRACTICE' ? 'text-[#1FA2A6]' : 'text-slate-400'}`}>
-          <Sparkles size={20} />
-          <span className="text-[10px] font-bold">Practice</span>
-        </button>
-        <button onClick={() => setView('HISTORY')} className={`flex flex-col items-center gap-1 flex-1 ${view === 'HISTORY' ? 'text-[#1FA2A6]' : 'text-slate-400'}`}>
-          <History size={20} />
-          <span className="text-[10px] font-bold">History</span>
-        </button>
-      </nav>
     </div>
   );
 };
