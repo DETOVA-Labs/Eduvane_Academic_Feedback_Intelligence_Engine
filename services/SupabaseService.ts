@@ -1,3 +1,9 @@
+/**
+ * Overview: SupabaseService.ts
+ * Purpose: Implements part of the Eduvane application behavior for this module.
+ * Notes: Keep exports focused and update comments when behavior changes.
+ */
+
 
 import { createClient } from '@supabase/supabase-js';
 import { Submission, PracticeSet, UserProfile } from '../types.ts';

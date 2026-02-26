@@ -1,3 +1,9 @@
+/**
+ * Overview: Dashboard.tsx
+ * Purpose: Implements part of the Eduvane application behavior for this module.
+ * Notes: Keep exports focused and update comments when behavior changes.
+ */
+
 
 import React, { useState } from 'react';
 import { Send, Loader2, Sparkles, TrendingUp, ChevronRight, Camera, FileText, Search } from 'lucide-react';

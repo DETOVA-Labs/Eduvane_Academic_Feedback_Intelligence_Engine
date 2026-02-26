@@ -1,3 +1,9 @@
+/**
+ * Overview: PracticeFlow.tsx
+ * Purpose: Implements part of the Eduvane application behavior for this module.
+ * Notes: Keep exports focused and update comments when behavior changes.
+ */
+
 
 import React, { useState } from 'react';
 import { Sparkles, ArrowLeft, Loader2, Send, Search } from 'lucide-react';

@@ -1,3 +1,9 @@
+/**
+ * Overview: App.tsx
+ * Purpose: Implements part of the Eduvane application behavior for this module.
+ * Notes: Keep exports focused and update comments when behavior changes.
+ */
+
 import { useEffect, useMemo, useState } from "react";
 import { ChatComposer } from "./components/ChatComposer";
 import { ChatThread } from "./components/ChatThread";
@@ -11,6 +17,7 @@ import {
   UploadArtifact
 } from "./types";
 
+// Converts an uploaded file into the base64 payload expected by gateway APIs.
 function toBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -24,6 +31,7 @@ function toBase64(file: File): Promise<string> {
   });
 }
 
+// Creates a standardized chat message object for consistent rendering and history.
 function createMessage(role: "user" | "assistant", content: string): ConversationMessage {
   return {
     id: crypto.randomUUID(),
@@ -34,6 +42,7 @@ function createMessage(role: "user" | "assistant", content: string): Conversatio
 }
 
 export function App() {
+  // Application state tracks user role, sessions, conversation messages, and UX indicators.
   const [role, setRole] = useState<EduvaneRole>("UNKNOWN");
   const [history, setHistory] = useState<ConversationSummary[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string>(crypto.randomUUID());
@@ -44,6 +53,7 @@ export function App() {
   const [rolePromptDismissed, setRolePromptDismissed] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Active messages are derived from the current session id.
   const activeMessages = useMemo(
     () => messagesBySession[activeSessionId] || [],
     [messagesBySession, activeSessionId]
@@ -52,6 +62,7 @@ export function App() {
   useEffect(() => {
     let mounted = true;
 
+    // Initial bootstrap fetches role identity and session history.
     async function bootstrap() {
       try {
         const [identity, sessions] = await Promise.all([
@@ -87,6 +98,7 @@ export function App() {
       return;
     }
 
+    // Lazy-loads historical turns only when the selected session is not in memory.
     async function loadConversation() {
       try {
         const turns = await apiClient.getConversation(activeSessionId);
@@ -116,6 +128,7 @@ export function App() {
     };
   }, [activeSessionId, history, messagesBySession]);
 
+  // Central helper to append a single message to a given session transcript.
   const appendMessage = (sessionId: string, message: ConversationMessage) => {
     setMessagesBySession((current) => ({
       ...current,
@@ -123,6 +136,7 @@ export function App() {
     }));
   };
 
+  // Submits user text/files, forwards to gateway, and appends the assistant response.
   const sendMessage = async (messageText: string, files: File[]) => {
     setError(null);
     const userDisplay = messageText || "Uploaded student work for review.";
@@ -186,11 +200,13 @@ export function App() {
     }
   };
 
+  // Starts a brand-new local session id for a fresh conversation.
   const handleNewSession = () => {
     const newSessionId = crypto.randomUUID();
     setActiveSessionId(newSessionId);
   };
 
+  // Persists role preference and clears the role prompt for the current browser session.
   const handleRolePick = async (picked: Exclude<EduvaneRole, "UNKNOWN">) => {
     try {
       const updated = await apiClient.setRole(picked);
@@ -201,6 +217,7 @@ export function App() {
     }
   };
 
+  // Main workspace layout: navigation sidebar, transcript body, and bottom composer.
   return (
     <div className="workspace">
       <Sidebar

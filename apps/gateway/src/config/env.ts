@@ -1,3 +1,9 @@
+/**
+ * Overview: env.ts
+ * Purpose: Implements part of the Eduvane application behavior for this module.
+ * Notes: Keep exports focused and update comments when behavior changes.
+ */
+
 import dotenv from "dotenv";
 import { z } from "zod";
 

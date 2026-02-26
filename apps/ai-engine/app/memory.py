@@ -1,3 +1,9 @@
+"""
+Overview: memory.py
+Purpose: Defines part of the Eduvane runtime behavior for this module.
+Notes: Keep logic cohesive and update docstrings/comments when behavior changes.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
