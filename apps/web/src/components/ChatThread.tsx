@@ -1,3 +1,9 @@
+/**
+ * Overview: ChatThread.tsx
+ * Purpose: Implements part of the Eduvane application behavior for this module.
+ * Notes: Keep exports focused and update comments when behavior changes.
+ */
+
 import { ConversationMessage } from "../types";
 
 interface ChatThreadProps {

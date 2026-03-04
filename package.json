@@ -2,6 +2,10 @@
   "name": "eduvane",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.9.0",
+    "npm": ">=10"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -11,19 +15,19 @@
     "dev:gateway": "npm --prefix apps/gateway run dev"
   },
   "dependencies": {
-    "next": "14.1.0",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
+    "@supabase/supabase-js": "^2.97.0",
     "lucide-react": "0.344.0",
-    "@supabase/supabase-js": "2.45.4"
+    "next": "^16.1.6",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
   },
   "devDependencies": {
     "@types/node": "20.11.19",
     "@types/react": "18.2.0",
     "@types/react-dom": "18.2.0",
-    "typescript": "5.2.2",
     "autoprefixer": "^10.4.17",
     "postcss": "^8.4.35",
-    "tailwindcss": "^3.4.1"
+    "tailwindcss": "^3.4.1",
+    "typescript": "5.2.2"
   }
 }

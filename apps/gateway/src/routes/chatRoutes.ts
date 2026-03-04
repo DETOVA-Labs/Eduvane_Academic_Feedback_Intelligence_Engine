@@ -1,3 +1,9 @@
+/**
+ * Overview: chatRoutes.ts
+ * Purpose: Implements part of the Eduvane application behavior for this module.
+ * Notes: Keep exports focused and update comments when behavior changes.
+ */
+
 import { Router } from "express";
 import { z } from "zod";
 import { requestAIEngine } from "../clients/aiEngineClient.js";
@@ -7,6 +13,7 @@ import {
   listConversationSummaries,
   saveConversationExchange
 } from "../services/historyStore.js";
+import { realizeLinguisticResponse } from "../services/linguisticRealizer.js";
 import { shapeAIRequest } from "../services/requestShaper.js";
 
 const uploadSchema = z.object({
@@ -120,15 +127,40 @@ chatRouter.post("/respond", async (request, response) => {
       history: priorTurns
     });
     const aiResponse = await requestAIEngine(aiRequest);
+    const recentOutputs = priorTurns
+      .filter((turn) => turn.role === "assistant")
+      .map((turn) => turn.content)
+      .slice(-8);
+    const realization = await realizeLinguisticResponse({
+      sessionId: aiResponse.sessionId,
+      intent: aiResponse.intent,
+      role: aiResponse.role,
+      userMessage: body.message,
+      baseResponseText: aiResponse.responseText,
+      baseFollowUpSuggestion: aiResponse.followUpSuggestion,
+      recentOutputs
+    });
+    const finalResponse = {
+      ...aiResponse,
+      responseText: realization.responseText,
+      followUpSuggestion: realization.followUpSuggestion
+    };
+
+    if (!realization.applied) {
+      console.info("linguistic_realization_fallback", {
+        sessionId: aiResponse.sessionId,
+        reason: realization.fallbackReason
+      });
+    }
 
     await saveConversationExchange({
       userId: request.eduSession.userId,
       sessionId: aiResponse.sessionId,
       userMessage: body.message.trim() || "Uploaded student work for analysis.",
-      assistantMessage: aiResponse.responseText
+      assistantMessage: finalResponse.responseText
     });
 
-    response.json(aiResponse);
+    response.json(finalResponse);
   } catch (error) {
     response.status(502).json({
       error: "Unable to complete Eduvane orchestration request."

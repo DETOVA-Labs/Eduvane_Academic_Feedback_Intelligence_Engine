@@ -1,3 +1,9 @@
+/**
+ * Overview: ChatComposer.tsx
+ * Purpose: Implements part of the Eduvane application behavior for this module.
+ * Notes: Keep exports focused and update comments when behavior changes.
+ */
+
 import { FormEvent, useMemo, useRef, useState } from "react";
 
 interface ChatComposerProps {

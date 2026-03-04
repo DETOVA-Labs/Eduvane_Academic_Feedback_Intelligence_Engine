@@ -24,19 +24,29 @@ If you still run the root prototype, use `services/.env.example` as its environm
 
 ## Quick Start
 
+Prerequisites:
+
+- Node.js `20+` (recommended: use `.nvmrc`)
+- npm `10+`
+- Python `3.12+` with `venv`
+
 1. Copy environment templates:
    - `apps/web/.env.example` -> `apps/web/.env`
    - `apps/gateway/.env.example` -> `apps/gateway/.env`
    - `apps/ai-engine/.env.example` -> `apps/ai-engine/.env`
 2. Install dependencies:
+   - `npm install`
    - `npm --prefix apps/web install`
    - `npm --prefix apps/gateway install`
+   - `npm --prefix packages/contracts install`
 3. Install Python dependencies:
+   - `python3 -m venv apps/ai-engine/.venv`
+   - `source apps/ai-engine/.venv/bin/activate`
    - `pip install -r apps/ai-engine/requirements.txt`
 4. Run services in separate terminals:
    - Web: `npm --prefix apps/web run dev`
    - Gateway: `npm --prefix apps/gateway run dev`
-   - AI Engine: `uvicorn app.main:app --app-dir apps/ai-engine --reload --port 8090`
+   - AI Engine: `apps/ai-engine/.venv/bin/uvicorn app.main:app --app-dir apps/ai-engine --reload --port 8090`
 
 ## Service Responsibilities
 

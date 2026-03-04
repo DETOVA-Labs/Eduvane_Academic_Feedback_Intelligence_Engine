@@ -1,3 +1,9 @@
+/**
+ * Overview: contracts.ts
+ * Purpose: Implements part of the Eduvane application behavior for this module.
+ * Notes: Keep exports focused and update comments when behavior changes.
+ */
+
 export type EduvaneRole = "TEACHER" | "STUDENT" | "UNKNOWN";
 export type EduvaneIntent =
   | "ANALYSIS"
@@ -47,6 +53,31 @@ export interface AIEngineResponse {
   followUpSuggestion?: string;
   generatedQuestions?: string[];
   handwritingFeedback?: HandwritingFeedback;
+}
+
+export interface RealizationRequest {
+  sessionId: string;
+  intent: EduvaneIntent;
+  role: EduvaneRole;
+  userMessage: string;
+  baseResponseText: string;
+  baseFollowUpSuggestion?: string;
+  recentOutputs: string[];
+}
+
+export type RealizationFallbackReason =
+  | "disabled"
+  | "missing_config"
+  | "timeout"
+  | "provider_error"
+  | "invalid_output"
+  | "duplicate_output";
+
+export interface RealizationResult {
+  responseText: string;
+  followUpSuggestion?: string;
+  applied: boolean;
+  fallbackReason?: RealizationFallbackReason;
 }
 
 export interface ConversationSummary {

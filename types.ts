@@ -1,3 +1,9 @@
+/**
+ * Overview: types.ts
+ * Purpose: Implements part of the Eduvane application behavior for this module.
+ * Notes: Keep exports focused and update comments when behavior changes.
+ */
+
 
 export type EduvaneMode = 'STANDALONE' | 'INSTITUTIONAL';
 
@@ -5,6 +11,9 @@ export interface UserProfile {
   id: string;
   email: string;
   xp_total: number;
+  first_name?: string;
+  last_name?: string;
+  google_user_id?: string;
 }
 
 export interface IntentResult {
